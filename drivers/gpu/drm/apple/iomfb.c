@@ -56,6 +56,11 @@ module_param(iomfb_d123_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d123_force_true,
 		 "Return true from D123 for probing firmware-14 callback tables");
 
+bool iomfb_skip_first_client_open;
+module_param(iomfb_skip_first_client_open, bool, 0644);
+MODULE_PARM_DESC(iomfb_skip_first_client_open,
+		 "Skip first_client_open during DCP startup for firmware-14 probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

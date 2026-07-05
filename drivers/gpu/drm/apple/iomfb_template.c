@@ -1691,6 +1691,12 @@ static void init_3(struct apple_dcp *dcp, void *out, void *cookie)
 
 static void init_2(struct apple_dcp *dcp, void *out, void *cookie)
 {
+	if (iomfb_skip_first_client_open) {
+		dev_info(dcp->dev, "skipping dcpep_first_client_open for probe\n");
+		init_3(dcp, NULL, NULL);
+		return;
+	}
+
 	dcp_first_client_open(dcp, false, init_3, NULL);
 }
 
