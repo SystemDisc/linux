@@ -151,6 +151,11 @@ module_param(iomfb_skip_flush_invalid_mode, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_flush_invalid_mode,
 		 "Skip IOMFB flush/swap while DCP hotplug has not reported a valid mode");
 
+bool iomfb_skip_set_matrix;
+module_param(iomfb_skip_set_matrix, bool, 0644);
+MODULE_PARM_DESC(iomfb_skip_set_matrix,
+		 "Diagnostic: skip set_matrix before IOMFB swap_start");
+
 bool iomfb_swap_start_client_flag2;
 module_param(iomfb_swap_start_client_flag2, bool, 0644);
 MODULE_PARM_DESC(iomfb_swap_start_client_flag2,

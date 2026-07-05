@@ -2172,7 +2172,11 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		dcp->brightness.update = false;
 	}
 
-	if (crtc_state->color_mgmt_changed) {
+	if (crtc_state->color_mgmt_changed && iomfb_skip_set_matrix) {
+		dev_info(dcp->dev,
+			 "skipping set_matrix before swap_start for probe\n");
+		do_swap(dcp, NULL, NULL);
+	} else if (crtc_state->color_mgmt_changed) {
 		struct iomfb_set_matrix_req mat = {
 			.location = 9,
 		};
