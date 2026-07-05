@@ -370,6 +370,14 @@
 		clock-output-names = "nco_ref";
 	};
 
+	/* Pixel clock? frequency in Hz (compare: 4K@60 VGA clock 533.250 MHz) */
+	clk_disp0: clock-disp0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <533333328>;
+		clock-output-names = "clk_disp0";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -390,6 +398,82 @@
 			compatible = "apple,t8122-cluster-cpufreq", "apple,t8112-cluster-cpufreq";
 			reg = <0x2 0x11e20000 0 0x1000>;
 			#performance-domain-cells = <0>;
+		};
+
+		disp0_dart: iommu@28d304000 {
+			compatible = "apple,t8122-dart", "apple,t8110-dart";
+			reg = <0x2 0x8d304000 0x0 0x4000>;
+			#iommu-cells = <1>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 557 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&ps_disp_cpu>;
+			apple,dma-range = <0x0 0x0 0xf 0xffff0000>;
+			status = "disabled";
+		};
+
+		dcp_dart: iommu@28d30c000 {
+			compatible = "apple,t8122-dart", "apple,t8110-dart";
+			reg = <0x2 0x8d30c000 0x0 0x4000>;
+			#iommu-cells = <1>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 557 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&ps_disp_cpu>;
+			apple,dma-range = <0x8 0x00000000 0x7 0xffff0000>;
+		};
+
+		dcp_mbox: mbox@28ec08000 {
+			compatible = "apple,t8122-asc-mailbox", "apple,asc-mailbox-v4";
+			reg = <0x2 0x8ec08000 0x0 0x4000>;
+			interrupt-parent = <&aic>;
+			interrupts = <AIC_IRQ 538 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 537 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 540 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 539 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "send-empty", "send-not-empty",
+				"recv-empty", "recv-not-empty";
+			#mbox-cells = <0>;
+			power-domains = <&ps_disp_cpu>;
+			resets = <&ps_disp_cpu>;
+		};
+
+		dcp: dcp@28ec00000 {
+			compatible = "apple,t8122-dcp", "apple,dcp";
+			mboxes = <&dcp_mbox>;
+			mbox-names = "mbox";
+			iommus = <&dcp_dart 5>;
+
+			/* the ADT has 2 additional regs which seems to be unused */
+			reg-names = "coproc", "disp-0", "disp-1", "disp-2", "disp-3";
+			reg = <0x2 0x8ec00000 0x0 0x4000>,
+				<0x2 0x8c000000 0x0 0x690000>,
+				<0x2 0x8d320000 0x0 0x4000>,
+				<0x2 0x8d344000 0x0 0x4000>,
+				<0x2 0x8e800000 0x0 0x800000>;
+			apple,bw-scratch = <&pmgr_dcp 0 4 0x5d8>;
+			#ifdef APPLE_USE_PMP
+			power-domains = <&pmp_report_disp>;
+			#else
+			power-domains = <&ps_disp_cpu>;
+			#endif
+			resets = <&ps_disp_cpu>;
+			clocks = <&clk_disp0>;
+			phandle = <&dcp>;
+			// required bus properties for 'piodma' subdevice
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			disp0_piodma: piodma {
+				iommus = <&disp0_dart 4>;
+				phandle = <&disp0_piodma>;
+			};
+		};
+
+		display: display-subsystem {
+			compatible = "apple,display-subsystem";
+			/* disp_dart0 must be 1st since it is locked */
+			iommus = <&disp0_dart 0>;
+			/* generate phandle explicitly for use in loader */
+			phandle = <&display>;
 		};
 
 		i2c0: i2c@2a1010000 {
@@ -694,6 +778,12 @@
 				#power-domain-cells = <0>;
 				power-domains = <&ps_ans>;
 			};
+		};
+
+		pmgr_dcp: power-management@2d03d0000 {
+			reg = <0x2 0xd03d0000 0x0 0x4000>;
+			reg-names = "dcp-bw-scratch";
+			#apple,bw-scratch-cells = <3>;
 		};
 
 		pmp: pmp@2d0500000 {
