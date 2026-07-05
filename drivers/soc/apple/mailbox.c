@@ -200,7 +200,8 @@ static int apple_mbox_poll_locked(struct apple_mbox *mbox)
 	int ret = 0;
 
 	u32 mbox_ctrl = readl_relaxed(mbox->regs + mbox->hw->i2a_control);
-	if (apple_mbox_debug_dcp(mbox))
+	if (apple_mbox_debug_dcp(mbox) &&
+	    !(mbox_ctrl & mbox->hw->control_empty))
 		dev_info(mbox->dev, "mailbox: poll ctrl=0x%08x\n", mbox_ctrl);
 
 	while (!(mbox_ctrl & mbox->hw->control_empty)) {
@@ -238,8 +239,6 @@ static irqreturn_t apple_mbox_recv_irq(int irq, void *data)
 {
 	struct apple_mbox *mbox = data;
 
-	if (apple_mbox_debug_dcp(mbox))
-		dev_info(mbox->dev, "mailbox: recv IRQ\n");
 	spin_lock(&mbox->rx_lock);
 	apple_mbox_poll_locked(mbox);
 	spin_unlock(&mbox->rx_lock);

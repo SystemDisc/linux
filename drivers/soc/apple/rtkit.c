@@ -779,10 +779,30 @@ static int apple_rtkit_wait_for_completion(struct apple_rtkit *rtk,
 			return 0;
 		}
 
+		if (apple_rtkit_debug_dcp(rtk)) {
+			flush_workqueue(rtk->wq);
+			if (completion_done(c)) {
+				dev_info(rtk->dev,
+					 "RTKit: wait for %s completed after workqueue flush\n",
+					 what);
+				return 0;
+			}
+		}
+
 		polls = apple_mbox_poll(rtk->mbox);
 		if (apple_rtkit_debug_dcp(rtk) && polls)
 			dev_info(rtk->dev, "RTKit: polled %d message(s) while waiting for %s\n",
 				 polls, what);
+
+		if (apple_rtkit_debug_dcp(rtk)) {
+			flush_workqueue(rtk->wq);
+			if (completion_done(c)) {
+				dev_info(rtk->dev,
+					 "RTKit: wait for %s completed after poll/workqueue flush\n",
+					 what);
+				return 0;
+			}
+		}
 
 		left -= msecs_to_jiffies(25);
 	}
