@@ -58,6 +58,11 @@ static bool unstable_edid = true;
 module_param(unstable_edid, bool, 0644);
 MODULE_PARM_DESC(unstable_edid, "Enable unstable EDID retrival support");
 
+static bool allow_unsupported_firmware;
+module_param(allow_unsupported_firmware, bool, 0644);
+MODULE_PARM_DESC(allow_unsupported_firmware,
+		 "Experimentally allow unsupported DCP firmware versions");
+
 /* copied and simplified from drm_vblank.c */
 static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
@@ -973,6 +978,12 @@ static enum dcp_firmware_version dcp_check_firmware_version(struct device *dev)
 		return DCP_FIRMWARE_V_13_5;
 	else if (strncmp(compat_str, "13.5.0", sizeof(compat_str)) == 0)
 		return DCP_FIRMWARE_V_13_5;
+	else if (allow_unsupported_firmware && str_has_prefix(compat_str, "14.")) {
+		dev_warn(dev,
+			 "DCP firmware-compat %s (FW: %s) is unsupported; trying 13.5 handlers\n",
+			 compat_str, fw_str);
+		return DCP_FIRMWARE_V_13_5;
+	}
 
 	dev_err(dev, "DCP firmware-compat %s (FW: %s) is not supported\n",
 		compat_str, fw_str);
@@ -1077,15 +1088,19 @@ static int dcp_comp_bind(struct device *dev, struct device *main, void *data)
 	dcp->swapped_out_fbs =
 		(struct list_head)LIST_HEAD_INIT(dcp->swapped_out_fbs);
 
-	cpu_ctrl =
-		readl_relaxed(dcp->coproc_reg + APPLE_DCP_COPROC_CPU_CONTROL);
-	writel_relaxed(cpu_ctrl | APPLE_DCP_COPROC_CPU_CONTROL_RUN,
-		       dcp->coproc_reg + APPLE_DCP_COPROC_CPU_CONTROL);
-
 	dcp->rtk = devm_apple_rtkit_init(dev, dcp, "mbox", 0, &rtkit_ops);
 	if (IS_ERR(dcp->rtk))
 		return dev_err_probe(dev, PTR_ERR(dcp->rtk),
 				     "Failed to initialize RTKit\n");
+
+	cpu_ctrl =
+		readl_relaxed(dcp->coproc_reg + APPLE_DCP_COPROC_CPU_CONTROL);
+	dev_info(dev, "DCP CPU control before RUN: 0x%08x\n", cpu_ctrl);
+	writel_relaxed(cpu_ctrl | APPLE_DCP_COPROC_CPU_CONTROL_RUN,
+		       dcp->coproc_reg + APPLE_DCP_COPROC_CPU_CONTROL);
+	cpu_ctrl =
+		readl_relaxed(dcp->coproc_reg + APPLE_DCP_COPROC_CPU_CONTROL);
+	dev_info(dev, "DCP CPU control after RUN: 0x%08x\n", cpu_ctrl);
 
 	ret = apple_rtkit_wake(dcp->rtk);
 	if (ret)

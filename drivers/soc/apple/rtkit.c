@@ -82,6 +82,11 @@ struct apple_rtkit_rx_work {
 	struct work_struct work;
 };
 
+static bool apple_rtkit_debug_dcp(struct apple_rtkit *rtk)
+{
+	return strstarts(dev_name(rtk->dev), "28ec00000.dcp");
+}
+
 bool apple_rtkit_is_running(struct apple_rtkit *rtk)
 {
 	if (rtk->crashed)
@@ -107,6 +112,9 @@ static int apple_rtkit_management_send(struct apple_rtkit *rtk, u8 type,
 
 	msg &= ~APPLE_RTKIT_MGMT_TYPE;
 	msg |= FIELD_PREP(APPLE_RTKIT_MGMT_TYPE, type);
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev, "RTKit: TX mgmt type 0x%02x msg 0x%016llx\n",
+			 type, msg);
 	ret = apple_rtkit_send_message(rtk, APPLE_RTKIT_EP_MGMT, msg, NULL, false);
 
 	if (ret)
@@ -123,6 +131,9 @@ static void apple_rtkit_management_rx_hello(struct apple_rtkit *rtk, u64 msg)
 	int max_ver = FIELD_GET(APPLE_RTKIT_MGMT_HELLO_MAXVER, msg);
 	int want_ver = min(APPLE_RTKIT_MAX_SUPPORTED_VERSION, max_ver);
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev, "RTKit: RX HELLO min %d max %d raw 0x%016llx\n",
+			 min_ver, max_ver, msg);
 	dev_dbg(rtk->dev, "RTKit: Min ver %d, max ver %d\n", min_ver, max_ver);
 
 	if (min_ver > APPLE_RTKIT_MAX_SUPPORTED_VERSION) {
@@ -159,6 +170,10 @@ static void apple_rtkit_management_rx_epmap(struct apple_rtkit *rtk, u64 msg)
 	unsigned long bitmap = FIELD_GET(APPLE_RTKIT_MGMT_EPMAP_BITMAP, msg);
 	u32 base = FIELD_GET(APPLE_RTKIT_MGMT_EPMAP_BASE, msg);
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev,
+			 "RTKit: RX EPMAP base 0x%x bitmap 0x%lx last %d raw 0x%016llx\n",
+			 base, bitmap, !!(msg & APPLE_RTKIT_MGMT_EPMAP_LAST), msg);
 	dev_dbg(rtk->dev,
 		"RTKit: received endpoint bitmap 0x%lx with base 0x%x\n",
 		bitmap, base);
@@ -214,6 +229,10 @@ static void apple_rtkit_management_rx_iop_pwr_ack(struct apple_rtkit *rtk,
 {
 	unsigned int new_state = FIELD_GET(APPLE_RTKIT_MGMT_PWR_STATE, msg);
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev,
+			 "RTKit: RX IOP power ack 0x%x -> 0x%x raw 0x%016llx\n",
+			 rtk->iop_power_state, new_state, msg);
 	dev_dbg(rtk->dev, "RTKit: IOP power state transition: 0x%x -> 0x%x\n",
 		rtk->iop_power_state, new_state);
 	rtk->iop_power_state = new_state;
@@ -226,6 +245,10 @@ static void apple_rtkit_management_rx_ap_pwr_ack(struct apple_rtkit *rtk,
 {
 	unsigned int new_state = FIELD_GET(APPLE_RTKIT_MGMT_PWR_STATE, msg);
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev,
+			 "RTKit: RX AP power ack 0x%x -> 0x%x raw 0x%016llx\n",
+			 rtk->ap_power_state, new_state, msg);
 	dev_dbg(rtk->dev, "RTKit: AP power state transition: 0x%x -> 0x%x\n",
 		rtk->ap_power_state, new_state);
 	rtk->ap_power_state = new_state;
@@ -573,6 +596,10 @@ static void apple_rtkit_rx(struct apple_mbox *mbox, struct apple_mbox_msg msg,
 	struct apple_rtkit_rx_work *work;
 	u8 ep = msg.msg1;
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev, "RTKit: RX ep 0x%02x msg 0x%016llx\n",
+			 ep, msg.msg0);
+
 	/*
 	 * The message was read from a MMIO FIFO and we have to make
 	 * sure all reads from buffers sent with that message happen
@@ -628,6 +655,11 @@ int apple_rtkit_send_message(struct apple_rtkit *rtk, u8 ep, u64 message,
 	 * device before that MMIO write happens.
 	 */
 	dma_wmb();
+
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev,
+			 "RTKit: TX ep 0x%02x msg 0x%016llx atomic %d\n",
+			 ep, message, atomic);
 
 	return apple_mbox_send(rtk->mbox, msg, atomic);
 }
@@ -698,6 +730,9 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 		goto free_rtk;
 	}
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev, "RTKit: mailbox acquired\n");
+
 	rtk->mbox->rx = apple_rtkit_rx;
 	rtk->mbox->cookie = rtk;
 
@@ -712,6 +747,9 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 	if (ret)
 		goto destroy_wq;
 
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_info(rtk->dev, "RTKit: mailbox started\n");
+
 	return rtk;
 
 destroy_wq:
@@ -722,18 +760,37 @@ free_rtk:
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_init);
 
-static int apple_rtkit_wait_for_completion(struct completion *c)
+static int apple_rtkit_wait_for_completion(struct apple_rtkit *rtk,
+					   struct completion *c,
+					   const char *what)
 {
-	long t;
+	long t, left = msecs_to_jiffies(1000);
+	int polls;
 
-	t = wait_for_completion_interruptible_timeout(c,
-						      msecs_to_jiffies(1000));
-	if (t < 0)
-		return t;
-	else if (t == 0)
-		return -ETIME;
-	else
-		return 0;
+	while (left > 0) {
+		t = wait_for_completion_interruptible_timeout(c,
+							      min_t(long, left,
+								    msecs_to_jiffies(25)));
+		if (t < 0)
+			return t;
+		if (t > 0) {
+			if (apple_rtkit_debug_dcp(rtk))
+				dev_info(rtk->dev, "RTKit: wait for %s completed\n", what);
+			return 0;
+		}
+
+		polls = apple_mbox_poll(rtk->mbox);
+		if (apple_rtkit_debug_dcp(rtk) && polls)
+			dev_info(rtk->dev, "RTKit: polled %d message(s) while waiting for %s\n",
+				 polls, what);
+
+		left -= msecs_to_jiffies(25);
+	}
+
+	if (apple_rtkit_debug_dcp(rtk))
+		dev_err(rtk->dev, "RTKit: wait for %s timed out\n", what);
+
+	return -ETIME;
 }
 
 int apple_rtkit_reinit(struct apple_rtkit *rtk)
@@ -782,7 +839,8 @@ static int apple_rtkit_set_ap_power_state(struct apple_rtkit *rtk,
 	if (ret)
 		return ret;
 
-	ret = apple_rtkit_wait_for_completion(&rtk->ap_pwr_ack_completion);
+	ret = apple_rtkit_wait_for_completion(rtk, &rtk->ap_pwr_ack_completion,
+					      "AP power ack");
 	if (ret)
 		return ret;
 
@@ -805,7 +863,8 @@ static int apple_rtkit_set_iop_power_state(struct apple_rtkit *rtk,
 	if (ret)
 		return ret;
 
-	ret = apple_rtkit_wait_for_completion(&rtk->iop_pwr_ack_completion);
+	ret = apple_rtkit_wait_for_completion(rtk, &rtk->iop_pwr_ack_completion,
+					      "IOP power ack");
 	if (ret)
 		return ret;
 
@@ -824,14 +883,16 @@ int apple_rtkit_boot(struct apple_rtkit *rtk)
 		return -EINVAL;
 
 	dev_dbg(rtk->dev, "RTKit: waiting for boot to finish\n");
-	ret = apple_rtkit_wait_for_completion(&rtk->epmap_completion);
+	ret = apple_rtkit_wait_for_completion(rtk, &rtk->epmap_completion,
+					      "endpoint map");
 	if (ret)
 		return ret;
 	if (rtk->boot_result)
 		return rtk->boot_result;
 
 	dev_dbg(rtk->dev, "RTKit: waiting for IOP power state ACK\n");
-	ret = apple_rtkit_wait_for_completion(&rtk->iop_pwr_ack_completion);
+	ret = apple_rtkit_wait_for_completion(rtk, &rtk->iop_pwr_ack_completion,
+					      "IOP power ack");
 	if (ret)
 		return ret;
 

@@ -28,6 +28,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/string.h>
 #include <linux/soc/apple/mailbox.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -99,6 +100,11 @@ struct apple_mbox_hw {
 	unsigned int irq_bit_send_empty;
 };
 
+static bool apple_mbox_debug_dcp(struct apple_mbox *mbox)
+{
+	return strstarts(dev_name(mbox->dev), "28ec08000.mbox");
+}
+
 int apple_mbox_send(struct apple_mbox *mbox, const struct apple_mbox_msg msg,
 		    bool atomic)
 {
@@ -109,6 +115,10 @@ int apple_mbox_send(struct apple_mbox *mbox, const struct apple_mbox_msg msg,
 
 	spin_lock_irqsave(&mbox->tx_lock, flags);
 	mbox_ctrl = readl_relaxed(mbox->regs + mbox->hw->a2i_control);
+	if (apple_mbox_debug_dcp(mbox))
+		dev_info(mbox->dev,
+			 "mailbox: TX start ctrl=0x%08x msg0=0x%016llx msg1=0x%08x atomic=%d\n",
+			 mbox_ctrl, msg.msg0, msg.msg1, atomic);
 
 	while (mbox_ctrl & mbox->hw->control_full) {
 		if (atomic) {
@@ -156,6 +166,8 @@ int apple_mbox_send(struct apple_mbox *mbox, const struct apple_mbox_msg msg,
 	writeq_relaxed(msg.msg0, mbox->regs + mbox->hw->a2i_send0);
 	writeq_relaxed(FIELD_PREP(APPLE_MBOX_MSG1_MSG, msg.msg1),
 		       mbox->regs + mbox->hw->a2i_send1);
+	if (apple_mbox_debug_dcp(mbox))
+		dev_info(mbox->dev, "mailbox: TX complete\n");
 
 	spin_unlock_irqrestore(&mbox->tx_lock, flags);
 
@@ -188,12 +200,18 @@ static int apple_mbox_poll_locked(struct apple_mbox *mbox)
 	int ret = 0;
 
 	u32 mbox_ctrl = readl_relaxed(mbox->regs + mbox->hw->i2a_control);
+	if (apple_mbox_debug_dcp(mbox))
+		dev_info(mbox->dev, "mailbox: poll ctrl=0x%08x\n", mbox_ctrl);
 
 	while (!(mbox_ctrl & mbox->hw->control_empty)) {
 		msg.msg0 = readq_relaxed(mbox->regs + mbox->hw->i2a_recv0);
 		msg.msg1 = FIELD_GET(
 			APPLE_MBOX_MSG1_MSG,
 			readq_relaxed(mbox->regs + mbox->hw->i2a_recv1));
+		if (apple_mbox_debug_dcp(mbox))
+			dev_info(mbox->dev,
+				 "mailbox: RX msg0=0x%016llx msg1=0x%08x\n",
+				 msg.msg0, msg.msg1);
 
 		mbox->rx(mbox, msg, mbox->cookie);
 		ret++;
@@ -220,6 +238,8 @@ static irqreturn_t apple_mbox_recv_irq(int irq, void *data)
 {
 	struct apple_mbox *mbox = data;
 
+	if (apple_mbox_debug_dcp(mbox))
+		dev_info(mbox->dev, "mailbox: recv IRQ\n");
 	spin_lock(&mbox->rx_lock);
 	apple_mbox_poll_locked(mbox);
 	spin_unlock(&mbox->rx_lock);
@@ -250,6 +270,8 @@ int apple_mbox_start(struct apple_mbox *mbox)
 	ret = pm_runtime_resume_and_get(mbox->dev);
 	if (ret)
 		return ret;
+	if (apple_mbox_debug_dcp(mbox))
+		dev_info(mbox->dev, "mailbox: start\n");
 
 	/*
 	 * Only some variants of this mailbox HW provide interrupt control
@@ -267,6 +289,8 @@ int apple_mbox_start(struct apple_mbox *mbox)
 
 	enable_irq(mbox->irq_recv_not_empty);
 	mbox->active = true;
+	if (apple_mbox_debug_dcp(mbox))
+		dev_info(mbox->dev, "mailbox: recv IRQ enabled\n");
 	return 0;
 }
 EXPORT_SYMBOL(apple_mbox_start);
