@@ -11,6 +11,11 @@ static bool enable_verbose_logging;
 module_param(enable_verbose_logging, bool, 0644);
 MODULE_PARM_DESC(enable_verbose_logging, "Enable DCP firmware verbose logging");
 
+static bool systemep_async_start;
+module_param(systemep_async_start, bool, 0644);
+MODULE_PARM_DESC(systemep_async_start,
+		 "Start DCP system endpoint without waiting before IOMFB");
+
 /*
  * Serialized setProperty("gAFKConfigLogMask", 0xffff) IPC call which
  * will set the DCP firmware log level to the most verbose setting
@@ -117,10 +122,18 @@ static const struct apple_epic_service_ops systemep_ops[] = {
 
 int systemep_init(struct apple_dcp *dcp)
 {
+	int ret;
+
 	init_completion(&dcp->systemep_done);
 
 	dcp->systemep = afk_init(dcp, SYSTEM_ENDPOINT, systemep_ops);
-	afk_start(dcp->systemep);
+	if (systemep_async_start)
+		ret = afk_start_nowait(dcp->systemep);
+	else
+		ret = afk_start(dcp->systemep);
+	if (ret)
+		dev_warn(dcp->dev, "Failed to start system AFK endpoint: %d\n",
+			 ret);
 
 	if (!enable_verbose_logging)
 		return 0;
