@@ -38,6 +38,21 @@
 	brcm,board-type = "apple,tuzla";
 };
 
+&dcp {
+	panel: panel {
+		compatible = "apple,panel-j615", "apple,panel";
+		width-mm = <327>;
+		height-mm = <211>;
+		adj-height-mm = <204>;
+		apple,max-brightness = <500>;
+	};
+};
+
+&framebuffer0 {
+	panel = <&panel>;
+	post-init-providers = <&panel>;
+};
+
 /* Virtual regulator representing the shared shutdown GPIO */
 / {
 	speaker_sdz: fixed-regulator-sn012776-sdz {
