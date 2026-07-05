@@ -95,6 +95,19 @@ maps for T8112: ``region-id-49``, ``region-id-50``, ``region-id-57``,
 still be added to the Linux device tree before m1n1 can attach those
 reserved-memory mappings to Linux device nodes.
 
+Branch-local DCP plumbing
+=========================
+
+This branch now describes the internal T8122 DCP, DCP mailbox, DCP DART,
+disp0 DART, and display-subsystem nodes from the captured ADT. It also adds
+the ``dcp``, ``disp0``, and ``disp0_piodma`` aliases required by m1n1 so a
+T8122-capable loader can attach the display carveout mappings and firmware
+metadata to the Linux FDT.
+
+This is not yet a working M3 DRM display stack. The nodes are intended to
+make manual DCP probe experiments possible while keeping the installed boot
+configuration on the known-good simplefb path.
+
 Required next data
 ==================
 
