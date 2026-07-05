@@ -1842,6 +1842,14 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 {
 	struct dcp_swap_start_req start_req = { 0 };
 
+	if (iomfb_swap_start_client_flag2) {
+		start_req.client.flag2 = 1;
+		dev_info(dcp->dev,
+			 "swap_start client probe: handle=0x%llx flag1=%u flag2=%u\n",
+			 start_req.client.handle, start_req.client.flag1,
+			 start_req.client.flag2);
+	}
+
 	if (dcp->connector && dcp->connector->connected)
 		dcp_swap_start(dcp, false, &start_req, dcp_swap_started, NULL);
 	else

@@ -151,6 +151,11 @@ module_param(iomfb_skip_flush_invalid_mode, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_flush_invalid_mode,
 		 "Skip IOMFB flush/swap while DCP hotplug has not reported a valid mode");
 
+bool iomfb_swap_start_client_flag2;
+module_param(iomfb_swap_start_client_flag2, bool, 0644);
+MODULE_PARM_DESC(iomfb_swap_start_client_flag2,
+		 "Diagnostic: set IOUserClient flag2 in IOMFB swap_start requests");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,
