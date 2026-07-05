@@ -465,22 +465,28 @@ static bool iomfbep_cb_match_backlight_service(struct apple_dcp *dcp, int tag, v
 	return false;
 }
 
-static void iomfb_cb_pr_publish(struct apple_dcp *dcp, struct iomfb_property *prop)
+static void iomfb_cb_pr_publish(struct apple_dcp *dcp, u32 id, u32 value,
+				u32 unk0, u32 unk1, u32 in_len)
 {
-	switch (prop->id) {
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "pr_publish id=%u value=%u unk0=0x%x unk1=0x%x in=%u\n",
+			 id, value, unk0, unk1, in_len);
+
+	switch (id) {
 	case IOMFB_PROPERTY_NITS:
 	{
 		if (dcp_has_panel(dcp)) {
-			dcp->brightness.nits = prop->value / dcp->brightness.scale;
+			dcp->brightness.nits = value / dcp->brightness.scale;
 			/* notify backlight device of the initial brightness */
 			if (!dcp->brightness.bl_dev && dcp->brightness.maximum > 0)
 				schedule_work(&dcp->bl_register_wq);
-			trace_iomfb_brightness(dcp, prop->value);
+			trace_iomfb_brightness(dcp, value);
 		}
 		break;
 	}
 	default:
-		dev_dbg(dcp->dev, "pr_publish: id: %d = %u\n", prop->id, prop->value);
+		dev_dbg(dcp->dev, "pr_publish: id: %u = %u\n", id, value);
 	}
 }
 
@@ -1689,8 +1695,32 @@ TRAMPOLINE_IN(trampoline_swap_complete_intent_gated,
 TRAMPOLINE_IN(trampoline_abort_swap_ap_gated, dcpep_cb_abort_swap_ap_gated, u32);
 TRAMPOLINE_IN(trampoline_enable_backlight_message_ap_gated,
 	      iomfbep_cb_enable_backlight_message_ap_gated, u8);
-TRAMPOLINE_IN(trampoline_pr_publish, iomfb_cb_pr_publish,
-	      struct iomfb_property);
+static bool __maybe_unused trampoline_pr_publish(struct apple_dcp *dcp, int tag,
+						 void *out, void *in)
+{
+	u8 *buf = in;
+	u32 id = 0;
+	u32 value = 0;
+	u32 unk0 = 0;
+	u32 unk1 = 0;
+
+	trace_iomfb_callback(dcp, tag, "iomfb_cb_pr_publish");
+
+	if (dcp->callback_in_len >= sizeof(id))
+		memcpy(&id, buf, sizeof(id));
+	if (dcp->callback_in_len >= sizeof(id) + sizeof(value))
+		memcpy(&value, buf + sizeof(id), sizeof(value));
+	if (dcp->callback_in_len >= sizeof(id) + sizeof(value) + sizeof(unk0))
+		memcpy(&unk0, buf + sizeof(id) + sizeof(value), sizeof(unk0));
+	if (dcp->callback_in_len >= sizeof(id) + sizeof(value) +
+				    sizeof(unk0) + sizeof(unk1))
+		memcpy(&unk1, buf + sizeof(id) + sizeof(value) + sizeof(unk0),
+		       sizeof(unk1));
+
+	iomfb_cb_pr_publish(dcp, id, value, unk0, unk1, dcp->callback_in_len);
+
+	return true;
+}
 TRAMPOLINE_INOUT(trampoline_get_tiling_state, dcpep_cb_get_tiling_state,
 		 struct dcpep_get_tiling_state_req, struct dcpep_get_tiling_state_resp);
 TRAMPOLINE_OUT(trampoline_create_backlight_service, dcpep_cb_create_backlight_service, u8);
