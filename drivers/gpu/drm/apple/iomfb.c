@@ -86,6 +86,11 @@ module_param(iomfb_set_parameter_count_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_set_parameter_count_override,
 		 "Override set_parameter_dcp count for firmware probing");
 
+bool iomfb_power_before_display_device;
+module_param(iomfb_power_before_display_device, bool, 0644);
+MODULE_PARM_DESC(iomfb_power_before_display_device,
+		 "Request display power before set_display_device during DCP power-on probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

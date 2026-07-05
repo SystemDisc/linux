@@ -1036,6 +1036,35 @@ static void dcp_on_set_parameter(struct apple_dcp *dcp, void *out, void *cookie)
 	dcp_set_parameter_dcp(dcp, false, &param, dcp_on_set_power_state, cookie);
 }
 
+static void dcp_power_first_on_set_parameter(struct apple_dcp *dcp, void *out,
+					     void *cookie)
+{
+	struct dcp_set_parameter_dcp param = {
+		.param = IOMFBPARAM_ADAPTIVE_SYNC,
+		.value = { 0 },
+		.count = dcp_set_parameter_count(),
+	};
+
+	dev_info(dcp->dev, "power-first set_parameter_dcp adaptive-sync count:%u\n",
+		 param.count);
+	dcp_set_parameter_dcp(dcp, false, &param, dcp_on_final, cookie);
+}
+
+static void dcp_power_first_on_set_power_state(struct apple_dcp *dcp, void *out,
+					       void *cookie)
+{
+	dcp_callback_t cb;
+	u32 handle;
+
+	handle = dcp->main_display ? 0 : 2;
+	cb = (!dcp->main_display || iomfb_set_parameter_on_main) ?
+		     dcp_power_first_on_set_parameter :
+		     dcp_on_final;
+
+	dev_info(dcp->dev, "power-first set_display_device handle:%u\n", handle);
+	dcp_set_display_device(dcp, false, &handle, cb, cookie);
+}
+
 void DCP_FW_NAME(iomfb_poweron)(struct apple_dcp *dcp)
 {
 	struct dcp_wait_cookie *cookie;
@@ -1052,7 +1081,16 @@ void DCP_FW_NAME(iomfb_poweron)(struct apple_dcp *dcp)
 	/* increase refcount to ensure the receiver has a reference */
 	kref_get(&cookie->refcount);
 
-	if (dcp->main_display) {
+	if (iomfb_power_before_display_device) {
+		struct dcp_set_power_state_req req = {
+			.unklong = 1,
+		};
+
+		dev_info(dcp->dev,
+			 "dcp_poweron: using power-before-display-device probe order\n");
+		dcp_set_power_state(dcp, false, &req,
+				    dcp_power_first_on_set_power_state, cookie);
+	} else if (dcp->main_display) {
 		handle = 0;
 		dcp_set_display_device(dcp, false, &handle,
 				       iomfb_set_parameter_on_main ?
