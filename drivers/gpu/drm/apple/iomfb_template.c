@@ -609,11 +609,12 @@ dcpep_cb_create_default_fb_surface(struct apple_dcp *dcp,
 {
 	if (iomfb_trace_ipc)
 		dev_info(dcp->dev,
-			 "create_default_fb_surface width=%u height=%u in=%u out=%u\n",
+			 "create_default_fb_surface width=%u height=%u in=%u out=%u ret=%u\n",
 			 req->width, req->height, dcp->callback_in_len,
-			 dcp->callback_out_len);
+			 dcp->callback_out_len,
+			 iomfb_create_default_fb_surface_ret);
 
-	return 1;
+	return iomfb_create_default_fb_surface_ret;
 }
 
 static void iomfbep_cb_enable_backlight_message_ap_gated(struct apple_dcp *dcp,

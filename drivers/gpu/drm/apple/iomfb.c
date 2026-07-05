@@ -101,6 +101,11 @@ module_param(iomfb_dfb_allocated, bool, 0644);
 MODULE_PARM_DESC(iomfb_dfb_allocated,
 		 "Return true from IOMobileFramebufferAP::isDFBAllocated for firmware probing");
 
+uint iomfb_create_default_fb_surface_ret = 1;
+module_param(iomfb_create_default_fb_surface_ret, uint, 0644);
+MODULE_PARM_DESC(iomfb_create_default_fb_surface_ret,
+		 "Return value for create_default_fb_surface callback during firmware probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
