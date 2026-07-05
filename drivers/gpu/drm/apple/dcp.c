@@ -229,6 +229,19 @@ static void dcp_delayed_vblank(struct work_struct *work)
 	dcp_drm_crtc_vblank(dcp->crtc);
 }
 
+static void dcp_recv_afk_msg(struct apple_dcp *dcp, struct apple_dcp_afkep *ep,
+			     u8 endpoint, u64 message)
+{
+	if (!ep) {
+		dev_warn(dcp->dev,
+			 "dropping message 0x%016llx to uninitialized AFK endpoint 0x%02x\n",
+			 message, endpoint);
+		return;
+	}
+
+	afk_receive_message(ep, message);
+}
+
 static void dcp_recv_msg(void *cookie, u8 endpoint, u64 message)
 {
 	struct apple_dcp *dcp = cookie;
@@ -239,19 +252,19 @@ static void dcp_recv_msg(void *cookie, u8 endpoint, u64 message)
 	case IOMFB_ENDPOINT:
 		return iomfb_recv_msg(dcp, message);
 	case AV_ENDPOINT:
-		afk_receive_message(dcp->avep, message);
+		dcp_recv_afk_msg(dcp, dcp->avep, endpoint, message);
 		return;
 	case SYSTEM_ENDPOINT:
-		afk_receive_message(dcp->systemep, message);
+		dcp_recv_afk_msg(dcp, dcp->systemep, endpoint, message);
 		return;
 	case DISP0_ENDPOINT:
-		afk_receive_message(dcp->ibootep, message);
+		dcp_recv_afk_msg(dcp, dcp->ibootep, endpoint, message);
 		return;
 	case DPAVSERV_ENDPOINT:
-		afk_receive_message(dcp->dcpavservep, message);
+		dcp_recv_afk_msg(dcp, dcp->dcpavservep, endpoint, message);
 		return;
 	case DPTX_ENDPOINT:
-		afk_receive_message(dcp->dptxep, message);
+		dcp_recv_afk_msg(dcp, dcp->dptxep, endpoint, message);
 		return;
 	default:
 		WARN(endpoint, "unknown DCP endpoint %hhu\n", endpoint);
