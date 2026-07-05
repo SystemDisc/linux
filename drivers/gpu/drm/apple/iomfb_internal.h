@@ -12,6 +12,7 @@ struct apple_dcp;
 extern bool iomfb_trace_ipc;
 extern bool iomfb_d121_force_true;
 extern bool iomfb_d121_run_boot_sequence;
+extern bool iomfb_top_level_dfb_setup;
 extern bool iomfb_d123_force_true;
 extern bool iomfb_skip_first_client_open;
 extern bool iomfb_skip_is_main_display;

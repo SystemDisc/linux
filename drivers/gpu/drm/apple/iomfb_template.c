@@ -2069,16 +2069,42 @@ static void init_1(struct apple_dcp *dcp, void *out, void *cookie)
 					       NULL);
 }
 
-static void dcp_started(struct apple_dcp *dcp, void *data, void *cookie)
+static void dcp_started_continue(struct apple_dcp *dcp, void *cookie)
 {
 	struct iomfb_get_color_remap_mode_req color_remap =
 		(struct iomfb_get_color_remap_mode_req){
 			.mode = 6,
 		};
 
+	iomfb_get_color_remap_mode(dcp, false, &color_remap, init_1, cookie);
+}
+
+static void top_level_dfb_create_done(struct apple_dcp *dcp, void *out, void *cookie)
+{
+	u32 ret = out ? *(u32 *)out : 0;
+
+	dev_info(dcp->dev, "top-level create_default_fb returned:0x%x\n", ret);
+	dcp_started_continue(dcp, cookie);
+}
+
+static void top_level_dfb_create(struct apple_dcp *dcp, void *out, void *cookie)
+{
+	dev_info(dcp->dev, "top-level set_create_dfb returned; creating default FB\n");
+	dcp_create_default_fb(dcp, false, top_level_dfb_create_done, cookie);
+}
+
+static void dcp_started(struct apple_dcp *dcp, void *data, void *cookie)
+{
 	dev_info(dcp->dev, "DCP booted\n");
 
-	iomfb_get_color_remap_mode(dcp, false, &color_remap, init_1, cookie);
+	if (iomfb_top_level_dfb_setup) {
+		dev_info(dcp->dev,
+			 "running top-level A373/A445 default framebuffer setup\n");
+		dcp_set_create_dfb(dcp, false, top_level_dfb_create, cookie);
+		return;
+	}
+
+	dcp_started_continue(dcp, cookie);
 }
 
 void DCP_FW_NAME(iomfb_shutdown)(struct apple_dcp *dcp)

@@ -56,6 +56,11 @@ module_param(iomfb_d121_run_boot_sequence, bool, 0644);
 MODULE_PARM_DESC(iomfb_d121_run_boot_sequence,
 		 "Handle D121 as start_hardware_boot by running the DCP boot sequence");
 
+bool iomfb_top_level_dfb_setup;
+module_param(iomfb_top_level_dfb_setup, bool, 0644);
+MODULE_PARM_DESC(iomfb_top_level_dfb_setup,
+		 "Run A373/A445 default framebuffer setup after A401 from command context");
+
 bool iomfb_d123_force_true = true;
 module_param(iomfb_d123_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d123_force_true,
