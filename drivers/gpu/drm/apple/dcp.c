@@ -63,6 +63,11 @@ module_param(allow_unsupported_firmware, bool, 0644);
 MODULE_PARM_DESC(allow_unsupported_firmware,
 		 "Experimentally allow unsupported DCP firmware versions");
 
+static bool dcp_poll_during_start_wait;
+module_param(dcp_poll_during_start_wait, bool, 0644);
+MODULE_PARM_DESC(dcp_poll_during_start_wait,
+		 "Poll RTKit while waiting for DCP display startup");
+
 /* copied and simplified from drm_vblank.c */
 static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
@@ -632,7 +637,33 @@ int dcp_wait_ready(struct platform_device *pdev, u64 timeout)
 	if (timeout <= 0)
 		return -ETIMEDOUT;
 
-	ret = wait_for_completion_timeout(&dcp->start_done, timeout);
+	if (dcp_poll_during_start_wait) {
+		long left = timeout;
+
+		ret = 0;
+		while (!dcp->active && left > 0) {
+			long slice = min_t(long, left, msecs_to_jiffies(25));
+			long wait_ret;
+			int polls;
+
+			wait_ret = wait_for_completion_timeout(&dcp->start_done,
+							       slice);
+			if (wait_ret > 0) {
+				ret = wait_ret;
+				break;
+			}
+
+			polls = apple_rtkit_poll(dcp->rtk);
+			if (polls)
+				dev_info(dcp->dev,
+					 "DCP startup: polled %d RTKit message(s) while waiting for IOMFB\n",
+					 polls);
+
+			left -= slice;
+		}
+	} else {
+		ret = wait_for_completion_timeout(&dcp->start_done, timeout);
+	}
 	if (ret < 0)
 		return ret;
 

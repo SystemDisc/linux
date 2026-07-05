@@ -5,6 +5,7 @@
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/kconfig.h>
+#include <linux/moduleparam.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -12,6 +13,11 @@
 
 #include "afk.h"
 #include "trace.h"
+
+static bool afk_poll_during_start_wait;
+module_param(afk_poll_during_start_wait, bool, 0644);
+MODULE_PARM_DESC(afk_poll_during_start_wait,
+		 "Poll RTKit while waiting for DCP AFK endpoint start");
 
 struct afk_receive_message_work {
 	struct apple_dcp_afkep *ep;
@@ -101,15 +107,34 @@ void afk_shutdown(struct apple_dcp_afkep *afkep)
 
 int afk_start(struct apple_dcp_afkep *ep)
 {
-	int ret;
+	long left = msecs_to_jiffies(1000);
 
 	afk_start_nowait(ep);
 
-	ret = wait_for_completion_timeout(&ep->started, msecs_to_jiffies(1000));
-	if (ret <= 0)
-		return -ETIMEDOUT;
-	else
-		return 0;
+	while (left > 0) {
+		long slice = min_t(long, left, msecs_to_jiffies(25));
+		long ret;
+		int polls;
+
+		ret = wait_for_completion_timeout(&ep->started, slice);
+		if (ret > 0)
+			return 0;
+
+		if (afk_poll_during_start_wait) {
+			polls = apple_rtkit_poll(ep->dcp->rtk);
+			if (polls)
+				dev_info(ep->dcp->dev,
+					 "AFK[ep:%02x]: polled %d RTKit message(s) while waiting for start\n",
+					 ep->endpoint, polls);
+			flush_workqueue(ep->wq);
+			if (completion_done(&ep->started))
+				return 0;
+		}
+
+		left -= slice;
+	}
+
+	return -ETIMEDOUT;
 }
 
 int afk_start_nowait(struct apple_dcp_afkep *ep)
