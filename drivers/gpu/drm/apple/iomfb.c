@@ -91,6 +91,11 @@ module_param(iomfb_power_before_display_device, bool, 0644);
 MODULE_PARM_DESC(iomfb_power_before_display_device,
 		 "Request display power before set_display_device during DCP power-on probing");
 
+bool iomfb_update_notify_clients;
+module_param(iomfb_update_notify_clients, bool, 0644);
+MODULE_PARM_DESC(iomfb_update_notify_clients,
+		 "Send update_notify_clients_dcp during DCP startup probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

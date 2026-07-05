@@ -146,6 +146,7 @@ struct dcp_set_frame_sync_props_resp {
 enum dcpep_method {
 	dcpep_late_init_signal,
 	dcpep_setup_video_limits,
+	dcpep_update_notify_clients_dcp,
 	dcpep_set_create_dfb,
 	dcpep_start_signal,
 	dcpep_swap_start,
@@ -295,6 +296,10 @@ struct dcp_set_power_state_req {
 struct dcp_set_power_state_resp {
 	u32 unkint;
 	u32 ret;
+} __packed;
+
+struct dcp_update_notify_clients_req {
+	u32 notify[26];
 } __packed;
 
 struct dcp_set_dcpav_prop_chunk_req {

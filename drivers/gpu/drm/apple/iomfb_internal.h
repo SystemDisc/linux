@@ -19,6 +19,7 @@ extern bool iomfb_poll_during_power_wait;
 extern bool iomfb_set_parameter_on_main;
 extern uint iomfb_set_parameter_count_override;
 extern bool iomfb_power_before_display_device;
+extern bool iomfb_update_notify_clients;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

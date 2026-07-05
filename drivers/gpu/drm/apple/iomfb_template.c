@@ -96,6 +96,9 @@ DCP_THUNK_INOUT(dcp_enable_disable_video_power_savings,
 
 DCP_THUNK_OUT(dcp_is_main_display, dcpep_is_main_display, u32);
 
+DCP_THUNK_IN(dcp_update_notify_clients_dcp, dcpep_update_notify_clients_dcp,
+	     struct dcp_update_notify_clients_req);
+
 /* DCP callback handlers */
 static void dcpep_cb_nop(struct apple_dcp *dcp)
 {
@@ -1824,10 +1827,27 @@ static void init_2(struct apple_dcp *dcp, void *out, void *cookie)
 	dcp_first_client_open(dcp, false, init_3, NULL);
 }
 
+static void init_update_notify_clients(struct apple_dcp *dcp, void *out,
+				       void *cookie)
+{
+	struct dcp_update_notify_clients_req req = {
+		.notify = { 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1 },
+	};
+
+	dev_info(dcp->dev,
+		 "sending update_notify_clients_dcp for firmware-14 probe\n");
+	dcp_update_notify_clients_dcp(dcp, false, &req, init_2, NULL);
+}
+
 static void init_1(struct apple_dcp *dcp, void *out, void *cookie)
 {
 	u32 val = 0;
-	dcp_enable_disable_video_power_savings(dcp, false, &val, init_2, NULL);
+
+	dcp_enable_disable_video_power_savings(dcp, false, &val,
+					       iomfb_update_notify_clients ?
+						       init_update_notify_clients :
+						       init_2,
+					       NULL);
 }
 
 static void dcp_started(struct apple_dcp *dcp, void *data, void *cookie)

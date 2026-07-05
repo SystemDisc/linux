@@ -8,6 +8,7 @@
 static const struct dcp_method_entry dcp_methods[dcpep_num_methods] = {
 	IOMFB_METHOD("A000", dcpep_late_init_signal),
 	IOMFB_METHOD("A029", dcpep_setup_video_limits),
+	IOMFB_METHOD("A034", dcpep_update_notify_clients_dcp),
 	IOMFB_METHOD("A131", iomfbep_a131_pmu_service_matched),
 	IOMFB_METHOD("A132", iomfbep_a132_backlight_service_matched),
 	IOMFB_METHOD("A373", dcpep_set_create_dfb),
