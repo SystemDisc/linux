@@ -66,6 +66,11 @@ module_param(iomfb_skip_is_main_display, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_is_main_display,
 		 "Skip is_main_display during DCP startup for firmware-14 probing");
 
+bool iomfb_poll_during_modeset_wait;
+module_param(iomfb_poll_during_modeset_wait, bool, 0644);
+MODULE_PARM_DESC(iomfb_poll_during_modeset_wait,
+		 "Poll RTKit while waiting for IOMFB set_digital_out_mode");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

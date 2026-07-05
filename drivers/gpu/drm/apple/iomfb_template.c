@@ -16,6 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/soc/apple/rtkit.h>
 
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
@@ -1489,8 +1490,38 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 	 * modesets. Add an extra 500ms to safe side that the modeset
 	 * call has returned.
 	 */
-	ret = wait_for_completion_timeout(&cookie->done,
-					  msecs_to_jiffies(8500));
+	if (iomfb_poll_during_modeset_wait) {
+		long left = msecs_to_jiffies(8500);
+
+		ret = 0;
+		while (left > 0) {
+			long slice = min_t(long, left, msecs_to_jiffies(25));
+			long wait_ret;
+			int polls;
+
+			wait_ret = wait_for_completion_timeout(&cookie->done,
+							       slice);
+			if (wait_ret > 0) {
+				ret = wait_ret;
+				break;
+			}
+
+			polls = apple_rtkit_poll(dcp->rtk);
+			if (polls)
+				dev_info(dcp->dev,
+					 "set_digital_out_mode: polled %d RTKit message(s) while waiting\n",
+					 polls);
+			if (completion_done(&cookie->done)) {
+				ret = 1;
+				break;
+			}
+
+			left -= slice;
+		}
+	} else {
+		ret = wait_for_completion_timeout(&cookie->done,
+						  msecs_to_jiffies(8500));
+	}
 
 	kref_put(&cookie->refcount, release_wait_cookie);
 	dcp->during_modeset = false;
