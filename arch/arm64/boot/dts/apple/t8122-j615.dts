@@ -108,7 +108,7 @@
 
 / {
 	sound {
-		compatible = "apple,j615-macaudio", "apple,j415-macaudio", "apple,macaudio";
+		compatible = "apple,j615-macaudio", "apple,j413-macaudio", "apple,macaudio";
 		model = "MacBook Air J615";
 
 		dai-link@0 {
