@@ -585,6 +585,24 @@ dcpep_cb_read_edt_data(struct apple_dcp *dcp, struct dcp_read_edt_data_req *req)
 	};
 }
 
+struct dcp_default_fb_surface_req {
+	u32 width;
+	u32 height;
+} __packed;
+
+static u32
+dcpep_cb_create_default_fb_surface(struct apple_dcp *dcp,
+				   struct dcp_default_fb_surface_req *req)
+{
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "create_default_fb_surface width=%u height=%u in=%u out=%u\n",
+			 req->width, req->height, dcp->callback_in_len,
+			 dcp->callback_out_len);
+
+	return 1;
+}
+
 static void iomfbep_cb_enable_backlight_message_ap_gated(struct apple_dcp *dcp,
 							 u8 *enabled)
 {
@@ -637,6 +655,37 @@ static u8 dcpep_cb_prop_chunk(struct apple_dcp *dcp,
 	}
 
 	memcpy(dcp->chunks.data + req->offset, req->data, req->length);
+	return true;
+}
+
+static bool __maybe_unused trampoline_prop_chunk_or_start(struct apple_dcp *dcp,
+							  int tag, void *out,
+							  void *in)
+{
+	u32 out_value;
+	u8 resp;
+
+	trace_iomfb_callback(dcp, tag, "dcpep_cb_prop_chunk_or_start");
+
+	if (dcp->callback_in_len == sizeof(u32)) {
+		u32 length;
+
+		memcpy(&length, in, sizeof(length));
+		if (iomfb_trace_ipc)
+			dev_info(dcp->dev,
+				 "DCPAV D127 using prop-start shape length=0x%x out=%u\n",
+				 length, dcp->callback_out_len);
+		resp = dcpep_cb_prop_start(dcp, in);
+	} else {
+		resp = dcpep_cb_prop_chunk(dcp, in);
+	}
+
+	out_value = resp ? 1 : 0;
+	if (dcp->callback_out_len >= sizeof(out_value))
+		memcpy(out, &out_value, sizeof(out_value));
+	else if (dcp->callback_out_len)
+		memcpy(out, &out_value, dcp->callback_out_len);
+
 	return true;
 }
 
@@ -801,6 +850,12 @@ static struct dcp_set_frame_sync_props_resp
 dcpep_cb_set_frame_sync_props(struct apple_dcp *dcp,
 			      struct dcp_set_frame_sync_props_req *req)
 {
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "set_frame_sync_props in=%u out=%u data0=%*ph\n",
+			 dcp->callback_in_len, dcp->callback_out_len,
+			 min_t(u32, dcp->callback_in_len, 32), req);
+
 	return (struct dcp_set_frame_sync_props_resp){};
 }
 
@@ -1219,6 +1274,9 @@ TRAMPOLINE_INOUT(trampoline_prop_chunk, dcpep_cb_prop_chunk,
 		 struct dcp_set_dcpav_prop_chunk_req, u8);
 TRAMPOLINE_INOUT(trampoline_prop_end, dcpep_cb_prop_end,
 		 struct dcp_set_dcpav_prop_end_req, u8);
+TRAMPOLINE_INOUT(trampoline_create_default_fb_surface,
+		 dcpep_cb_create_default_fb_surface,
+		 struct dcp_default_fb_surface_req, u32);
 TRAMPOLINE_INOUT(trampoline_allocate_bandwidth, dcpep_cb_allocate_bandwidth,
 	       struct dcp_allocate_bandwidth_req, struct dcp_allocate_bandwidth_resp);
 TRAMPOLINE_OUT(trampoline_rt_bandwidth, dcpep_cb_rt_bandwidth,

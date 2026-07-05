@@ -169,6 +169,10 @@ struct apple_dcp {
 	/* iomfb EP callback handlers */
 	const iomfb_cb_handler *cb_handlers;
 
+	/* Current IOMFB callback packet shape, for firmware-version probes. */
+	u32 callback_in_len;
+	u32 callback_out_len;
+
 	/* Active chunked transfer. There can only be one at a time. */
 	struct dcp_chunks chunks;
 

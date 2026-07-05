@@ -356,8 +356,12 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 	ch->output[depth] = out;
 	ch->end[depth] = offset + ALIGN(length, DCP_PACKET_ALIGNMENT);
 
+	dcp->callback_in_len = hdr->in_len;
+	dcp->callback_out_len = hdr->out_len;
 	if (dcp->cb_handlers[tag](dcp, tag, out, in))
 		dcp_ack(dcp, context);
+	dcp->callback_in_len = 0;
+	dcp->callback_out_len = 0;
 }
 
 static void dcpep_handle_ack(struct apple_dcp *dcp, enum dcp_context_id context,
