@@ -41,6 +41,11 @@ module_param(iomfb_shmem_dva_or, ullong, 0644);
 MODULE_PARM_DESC(iomfb_shmem_dva_or,
 		 "Debug mask ORed into the IOMFB SET_SHMEM DVA before sending");
 
+bool iomfb_trace_ipc;
+module_param(iomfb_trace_ipc, bool, 0644);
+MODULE_PARM_DESC(iomfb_trace_ipc,
+		 "Trace IOMFB method and callback tags in dmesg");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
@@ -195,6 +200,12 @@ void dcp_push(struct apple_dcp *dcp, bool oob, const struct dcp_method_entry *ca
 		memcpy(out_data, data, in_len);
 
 	trace_iomfb_push(dcp, call, context, offset, depth);
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "IOMFB call ctx=%u tag=%c%c%c%c name=%s in=%u out=%u off=0x%x depth=%u\n",
+			 context, call->tag[0], call->tag[1], call->tag[2],
+			 call->tag[3], call->name, in_len, out_len, offset,
+			 depth);
 
 	ch->callbacks[depth] = cb;
 	ch->cookies[depth] = cookie;
@@ -284,6 +295,13 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 			 hdr->tag[3], hdr->tag[2], hdr->tag[1], hdr->tag[0]);
 		return;
 	}
+
+	if (iomfb_trace_ipc)
+		dev_info(dev,
+			 "IOMFB callback ctx=%u tag=%c%c%c%c id=%d in=%u out=%u len=%u off=0x%x\n",
+			 context, hdr->tag[3], hdr->tag[2], hdr->tag[1],
+			 hdr->tag[0], tag, hdr->in_len, hdr->out_len, length,
+			 offset);
 
 	in = data + sizeof(*hdr);
 	out = in + hdr->in_len;

@@ -3,10 +3,13 @@
 
 #include <drm/drm_modes.h>
 #include <drm/drm_rect.h>
+#include <linux/types.h>
 
 #include "dcp-internal.h"
 
 struct apple_dcp;
+
+extern bool iomfb_trace_ipc;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

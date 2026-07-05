@@ -510,6 +510,9 @@ static void iomfbep_cb_enable_backlight_message_ap_gated(struct apple_dcp *dcp,
 /* Chunked data transfer for property dictionaries */
 static u8 dcpep_cb_prop_start(struct apple_dcp *dcp, u32 *length)
 {
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev, "DCPAV prop start length=0x%x\n", *length);
+
 	if (dcp->chunks.data != NULL) {
 		dev_warn(dcp->dev, "ignoring spurious transfer start\n");
 		return false;
@@ -529,6 +532,10 @@ static u8 dcpep_cb_prop_start(struct apple_dcp *dcp, u32 *length)
 static u8 dcpep_cb_prop_chunk(struct apple_dcp *dcp,
 			      struct dcp_set_dcpav_prop_chunk_req *req)
 {
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev, "DCPAV prop chunk offset=0x%x length=0x%x\n",
+			 req->offset, req->length);
+
 	if (!dcp->chunks.data) {
 		dev_warn(dcp->dev, "ignoring spurious chunk\n");
 		return false;
@@ -596,6 +603,11 @@ static u8 dcpep_cb_prop_end(struct apple_dcp *dcp,
 			    struct dcp_set_dcpav_prop_end_req *req)
 {
 	u8 resp = dcpep_process_chunks(dcp, req);
+
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "DCPAV prop end key=%s length=0x%zx resp=%u nr_modes=%u\n",
+			 req->key, dcp->chunks.length, resp, dcp->nr_modes);
 
 	/* move chunked data to connector to provide it via debugfs */
 	dcp_connector_update_dict(dcp->connector, req->key, &dcp->chunks);

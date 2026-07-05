@@ -46,6 +46,11 @@
 
 #define MAX_COPROCESSORS 3
 
+static unsigned int dcp_start_timeout_ms = 3000;
+module_param(dcp_start_timeout_ms, uint, 0644);
+MODULE_PARM_DESC(dcp_start_timeout_ms,
+		 "Timeout in ms for DCP startup during DRM bind");
+
 struct apple_drm_private {
 	struct drm_device drm;
 };
@@ -427,7 +432,7 @@ static int apple_drm_init_dcp(struct device *dev)
 	/*
 	 * Starting DPTX might take some time.
 	 */
-	timeout = get_jiffies_64() + msecs_to_jiffies(3000);
+	timeout = get_jiffies_64() + msecs_to_jiffies(dcp_start_timeout_ms);
 
 	for (i = 0; i < num_dcp; ++i) {
 		u64 jiffies = get_jiffies_64();
