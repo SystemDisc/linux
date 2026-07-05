@@ -286,15 +286,21 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 	struct device *dev = dcp->dev;
 	struct dcp_packet_header *hdr = data;
 	void *in, *out;
-	int tag = dcp_parse_tag(hdr->tag);
+	int tag;
 	struct dcp_channel *ch = dcp_get_channel(dcp, context);
+	u32 expected_len;
 	u8 depth;
 
-	if (tag < 0 || tag >= IOMFB_MAX_CB || !dcp->cb_handlers || !dcp->cb_handlers[tag]) {
-		dev_warn(dev, "received unknown callback %c%c%c%c\n",
-			 hdr->tag[3], hdr->tag[2], hdr->tag[1], hdr->tag[0]);
+	if (length < sizeof(*hdr)) {
+		dev_warn(dev, "received short callback len=%u off=0x%x\n",
+			 length, offset);
 		return;
 	}
+
+	tag = dcp_parse_tag(hdr->tag);
+	in = data + sizeof(*hdr);
+	out = in + hdr->in_len;
+	expected_len = sizeof(*hdr) + hdr->in_len + hdr->out_len;
 
 	if (iomfb_trace_ipc)
 		dev_info(dev,
@@ -303,8 +309,33 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 			 hdr->tag[0], tag, hdr->in_len, hdr->out_len, length,
 			 offset);
 
-	in = data + sizeof(*hdr);
-	out = in + hdr->in_len;
+	if (expected_len > length)
+		dev_warn(dev,
+			 "callback %c%c%c%c size mismatch: expected=%u len=%u\n",
+			 hdr->tag[3], hdr->tag[2], hdr->tag[1], hdr->tag[0],
+			 expected_len, length);
+
+	if (tag < 0 || tag >= IOMFB_MAX_CB || !dcp->cb_handlers || !dcp->cb_handlers[tag]) {
+		dev_warn(dev, "received unknown callback %c%c%c%c\n",
+			 hdr->tag[3], hdr->tag[2], hdr->tag[1], hdr->tag[0]);
+
+		if (iomfb_trace_ipc) {
+			u32 avail = length - sizeof(*hdr);
+			u32 in_avail = min_t(u32, hdr->in_len, avail);
+			u32 out_avail = avail > hdr->in_len ? avail - hdr->in_len : 0;
+			u32 in_dump = min_t(u32, in_avail, 64);
+			u32 out_dump = min_t(u32, min_t(u32, hdr->out_len, out_avail), 64);
+
+			if (in_dump)
+				dev_info(dev, "unknown callback input: %*ph\n",
+					 in_dump, in);
+			if (out_dump)
+				dev_info(dev, "unknown callback output before ack: %*ph\n",
+					 out_dump, out);
+		}
+
+		return;
+	}
 
 	// TODO: verify that in_len and out_len match our prototypes
 	// for now just clear the out data to have at least consistent results

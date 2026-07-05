@@ -116,6 +116,18 @@ static u32 dcpep_cb_zero(struct apple_dcp *dcp)
 	return 0;
 }
 
+static bool __maybe_unused dcpep_cb_d125_zero_ack(struct apple_dcp *dcp,
+						  int tag, void *out, void *in)
+{
+	trace_iomfb_callback(dcp, tag, __func__);
+
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "D125 firmware-14.x callback: acking zeroed output\n");
+
+	return true;
+}
+
 static void dcpep_cb_swap_complete(struct apple_dcp *dcp,
 				   struct DCP_FW_NAME(dc_swap_complete_resp) *resp)
 {
