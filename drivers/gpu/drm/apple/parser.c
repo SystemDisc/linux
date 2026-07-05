@@ -370,7 +370,15 @@ static int parse_color_modes(struct dcp_parse_ctx *handle,
 	dcp_parse_foreach_in_array(handle, outer_it) {
 		struct iterator it;
 		bool is_virtual = true;
-		struct color_mode cmode;
+		struct color_mode cmode = {
+			.colorimetry = -1,
+			.depth = -1,
+			.dynamic_range = -1,
+			.eotf = -1,
+			.id = -1,
+			.pixel_encoding = -1,
+			.score = -1,
+		};
 
 		dcp_parse_foreach_in_dict(handle, it) {
 			char *key = parse_string(it.handle);
@@ -411,6 +419,9 @@ static int parse_color_modes(struct dcp_parse_ctx *handle,
 				       cmode.depth, cmode.colorimetry,
 				       cmode.eotf, cmode.dynamic_range,
 				       cmode.pixel_encoding);
+		pr_info("apple-dcp: parsed color mode id=%lld score=%lld depth=%lld colorimetry=%lld eotf=%lld range=%lld encoding=%lld\n",
+			cmode.id, cmode.score, cmode.depth, cmode.colorimetry,
+			cmode.eotf, cmode.dynamic_range, cmode.pixel_encoding);
 
 		if (cmode.eotf == DCP_EOTF_SDR_GAMMA) {
 			if (cmode.pixel_encoding == DCP_COLOR_FORMAT_RGB &&
@@ -447,12 +458,16 @@ static int parse_mode(struct dcp_parse_ctx *handle,
 {
 	int ret = 0;
 	struct iterator it;
-	struct dimension horiz, vert;
+	struct dimension horiz = {}, vert = {};
 	s64 min_vrr = 0, max_vrr = 0;
 	s64 id = -1;
 	s64 best_color_mode = -1;
 	bool is_virtual = false;
 	struct drm_display_mode *mode = &out->mode;
+
+	memset(out, 0, sizeof(*out));
+	mode = &out->mode;
+	*score = -1;
 
 	dcp_parse_foreach_in_dict(handle, it) {
 		char *key = parse_string(it.handle);
@@ -562,6 +577,11 @@ static int parse_mode(struct dcp_parse_ctx *handle,
 	trace_iomfb_timing_mode(handle->dcp, id, *score, horiz.active,
 				vert.active, vert.precise_sync_rate,
 				best_color_mode);
+	pr_info("apple-dcp: parsed timing mode id=%lld score=%lld active=%lldx%lld total=%lldx%lld fp=%lld/%lld sync=%lld/%lld refresh=%lld color=%lld vrr=%d min_vrr=%lld max_vrr=%lld\n",
+		id, *score, horiz.active, vert.active, horiz.total, vert.total,
+		horiz.front_porch, vert.front_porch, horiz.sync_width,
+		vert.sync_width, vert.precise_sync_rate, best_color_mode,
+		out->vrr, min_vrr, max_vrr);
 
 	return 0;
 }
