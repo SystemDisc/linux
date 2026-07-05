@@ -290,10 +290,14 @@ void dcp_push(struct apple_dcp *dcp, bool oob, const struct dcp_method_entry *ca
 	ch->callbacks[depth] = cb;
 	ch->cookies[depth] = cookie;
 	ch->output[depth] = out + sizeof(header) + in_len;
+	ch->names[depth] = call->name;
+	memcpy(ch->tags[depth], call->tag, sizeof(ch->tags[depth]));
+	ch->in_len[depth] = in_len;
+	ch->out_len[depth] = out_len;
 	ch->end[depth] = offset + ALIGN(data_len, DCP_PACKET_ALIGNMENT);
 
 	dcp_send_message(dcp, IOMFB_ENDPOINT,
-			 dcpep_msg(context, data_len, offset));
+				 dcpep_msg(context, data_len, offset));
 }
 
 /* Parse a callback tag "D123" into the ID 123. Returns -EINVAL on failure. */
@@ -437,54 +441,52 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 static void dcpep_handle_ack(struct apple_dcp *dcp, enum dcp_context_id context,
 			     void *data, u32 length)
 {
-	struct dcp_packet_header *header = data;
 	struct dcp_channel *ch = dcp_get_channel(dcp, context);
 	void *out;
 	void *cookie;
 	dcp_callback_t cb;
-	u32 expected_len;
 	u32 out_dump;
+	u8 depth;
 
 	if (!ch) {
 		dev_warn(dcp->dev, "ignoring ack on context %X\n", context);
 		return;
 	}
 
-	if (length < sizeof(*header)) {
-		dev_warn(dcp->dev, "ignoring short ack on context %u len=%u\n",
-			 context, length);
+	if (!ch->depth) {
+		dev_warn(dcp->dev, "ignoring ack on context %u with empty stack\n",
+			 context);
 		return;
 	}
 
-	expected_len = sizeof(*header) + header->in_len + header->out_len;
-	out = data + sizeof(*header) + header->in_len;
+	dcp_pop_depth(&ch->depth);
+	depth = ch->depth;
+
+	cb = ch->callbacks[depth];
+	cookie = ch->cookies[depth];
+	out = ch->output[depth];
 
 	if (iomfb_trace_ipc) {
 		dev_info(dcp->dev,
-			 "IOMFB ack ctx=%u tag=%c%c%c%c in=%u out=%u len=%u\n",
-			 context, header->tag[3], header->tag[2],
-			 header->tag[1], header->tag[0], header->in_len,
-			 header->out_len, length);
+			 "IOMFB ack ctx=%u tag=%c%c%c%c name=%s in=%u out=%u msg_len=%u\n",
+			 context, ch->tags[depth][0], ch->tags[depth][1],
+			 ch->tags[depth][2], ch->tags[depth][3],
+			 ch->names[depth] ?: "unknown", ch->in_len[depth],
+			 ch->out_len[depth], length);
 
-		if (expected_len > length)
-			dev_warn(dcp->dev,
-				 "ack %c%c%c%c size mismatch: expected=%u len=%u\n",
-				 header->tag[3], header->tag[2], header->tag[1],
-				 header->tag[0], expected_len, length);
-
-		out_dump = min_t(u32, header->out_len, 32);
-		if (expected_len <= length && out_dump)
+		out_dump = min_t(u32, ch->out_len[depth], 32);
+		if (out && out_dump)
 			dev_info(dcp->dev, "IOMFB ack output: %*ph\n",
 				 out_dump, out);
 	}
 
-	dcp_pop_depth(&ch->depth);
-
-	cb = ch->callbacks[ch->depth];
-	cookie = ch->cookies[ch->depth];
-
-	ch->callbacks[ch->depth] = NULL;
-	ch->cookies[ch->depth] = NULL;
+	ch->callbacks[depth] = NULL;
+	ch->cookies[depth] = NULL;
+	ch->output[depth] = NULL;
+	ch->names[depth] = NULL;
+	memset(ch->tags[depth], 0, sizeof(ch->tags[depth]));
+	ch->in_len[depth] = 0;
+	ch->out_len[depth] = 0;
 
 	if (cb)
 		cb(dcp, out, cookie);
