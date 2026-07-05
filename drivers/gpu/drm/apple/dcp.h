@@ -37,6 +37,11 @@ int dcp_get_connector_type(struct platform_device *pdev);
 bool dcp_fw_compat_is_12_x(struct platform_device *pdev);
 void dcp_link(struct platform_device *pdev, struct apple_crtc *apple,
 	      struct apple_connector *connector);
+void dcp_set_boot_framebuffer(struct platform_device *pdev,
+			      const struct resource *reserved,
+			      const struct resource *visible,
+			      u32 width, u32 height, u32 stride,
+			      const char *format);
 int dcp_start(struct platform_device *pdev);
 int dcp_wait_ready(struct platform_device *pdev, u64 timeout);
 void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state);

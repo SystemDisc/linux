@@ -117,6 +117,16 @@ struct apple_dcp_hw_data {
 	u32 num_dptx_ports;
 };
 
+struct dcp_boot_framebuffer {
+	bool valid;
+	struct resource reserved;
+	struct resource visible;
+	u32 width;
+	u32 visible_height;
+	u32 stride;
+	char format[32];
+};
+
 /* TODO: move IOMFB members to its own struct */
 struct apple_dcp {
 	struct device *dev;
@@ -222,6 +232,7 @@ struct apple_dcp {
 	int width_mm, height_mm;
 
 	unsigned notch_height;
+	struct dcp_boot_framebuffer boot_fb;
 
 	/* Workqueue for sending vblank events when a dcp swap is not possible */
 	struct work_struct vblank_wq;

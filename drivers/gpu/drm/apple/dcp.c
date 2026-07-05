@@ -524,6 +524,27 @@ void dcp_link(struct platform_device *pdev, struct apple_crtc *crtc,
 	dcp->connector = connector;
 }
 
+void dcp_set_boot_framebuffer(struct platform_device *pdev,
+			      const struct resource *reserved,
+			      const struct resource *visible,
+			      u32 width, u32 height, u32 stride,
+			      const char *format)
+{
+	struct apple_dcp *dcp = platform_get_drvdata(pdev);
+
+	if (!dcp || !reserved || !visible || !stride)
+		return;
+
+	dcp->boot_fb.valid = true;
+	dcp->boot_fb.reserved = *reserved;
+	dcp->boot_fb.visible = *visible;
+	dcp->boot_fb.width = width;
+	dcp->boot_fb.visible_height = height;
+	dcp->boot_fb.stride = stride;
+	strscpy(dcp->boot_fb.format, format ?: "unknown",
+		sizeof(dcp->boot_fb.format));
+}
+
 
 bool dcp_fw_compat_is_12_x(struct platform_device *pdev)
 {

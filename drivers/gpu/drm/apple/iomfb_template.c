@@ -811,23 +811,68 @@ static u32
 dcpep_cb_create_default_fb_surface(struct apple_dcp *dcp,
 				   struct dcp_default_fb_surface_req *req)
 {
-	if (iomfb_trace_ipc)
+	if (iomfb_trace_ipc) {
 		dev_info(dcp->dev,
 			 "create_default_fb_surface width=%u height=%u in=%u out=%u ret=%u\n",
 			 req->width, req->height, dcp->callback_in_len,
 			 dcp->callback_out_len,
 			 iomfb_create_default_fb_surface_ret);
 
+		if (dcp->boot_fb.valid) {
+			resource_size_t notch_bytes;
+			resource_size_t request_size;
+			resource_size_t full_start = 0;
+			resource_size_t full_end = 0;
+			bool full_start_valid = false;
+			bool fits_reserved = false;
+
+			notch_bytes = (resource_size_t)dcp->notch_height *
+				      dcp->boot_fb.stride;
+			request_size = (resource_size_t)req->height *
+				       dcp->boot_fb.stride;
+
+			if (notch_bytes <= dcp->boot_fb.visible.start) {
+				full_start = dcp->boot_fb.visible.start - notch_bytes;
+				full_start_valid = true;
+
+				if (request_size &&
+				    full_start >= dcp->boot_fb.reserved.start &&
+				    full_start <= dcp->boot_fb.reserved.end &&
+				    request_size - 1 <=
+					    dcp->boot_fb.reserved.end - full_start) {
+					full_end = full_start + request_size - 1;
+					fits_reserved = true;
+				}
+			}
+
+			dev_info(dcp->dev,
+				 "create_default_fb_surface bootfb visible=%pR reserved=%pR visible_size=%ux%u stride=%u format=%s notch=%u notch_bytes=0x%llx req_size=0x%llx full_start_valid=%u full_start=%pa full_end=%pa fits_reserved=%u\n",
+				 &dcp->boot_fb.visible, &dcp->boot_fb.reserved,
+				 dcp->boot_fb.width, dcp->boot_fb.visible_height,
+				 dcp->boot_fb.stride, dcp->boot_fb.format,
+				 dcp->notch_height, (unsigned long long)notch_bytes,
+				 (unsigned long long)request_size, full_start_valid,
+				 &full_start, &full_end, fits_reserved);
+		}
+	}
+
 	return iomfb_create_default_fb_surface_ret;
 }
 
 static u32 dcpep_cb_get_display_default_stride(struct apple_dcp *dcp)
 {
-	if (iomfb_trace_ipc)
-		dev_info(dcp->dev, "get_display_default_stride returning %u\n",
-			 iomfb_default_stride_override);
+	u32 stride = iomfb_default_stride_override;
 
-	return iomfb_default_stride_override;
+	if (!stride && dcp->boot_fb.valid)
+		stride = dcp->boot_fb.stride;
+
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "get_display_default_stride returning %u override=%u bootfb_valid=%u\n",
+			 stride, iomfb_default_stride_override,
+			 dcp->boot_fb.valid);
+
+	return stride;
 }
 
 static void iomfbep_cb_enable_backlight_message_ap_gated(struct apple_dcp *dcp,

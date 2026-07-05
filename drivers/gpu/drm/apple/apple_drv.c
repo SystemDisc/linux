@@ -17,6 +17,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/string.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -58,6 +59,13 @@ MODULE_PARM_DESC(preserve_simplefb,
 
 struct apple_drm_private {
 	struct drm_device drm;
+	struct resource fb_r;
+	struct resource boot_fb_r;
+	u32 boot_fb_width;
+	u32 boot_fb_height;
+	u32 boot_fb_stride;
+	char boot_fb_format[32];
+	bool boot_fb_valid;
 };
 
 DEFINE_DRM_GEM_DMA_FOPS(apple_fops);
@@ -279,6 +287,7 @@ static int apple_probe_per_dcp(struct device *dev,
 			       struct platform_device *dcp,
 			       int num, bool dcp_ext)
 {
+	struct apple_drm_private *apple = dev_get_drvdata(dev);
 	struct apple_crtc *crtc;
 	struct apple_connector *connector;
 	struct apple_encoder *enc;
@@ -353,6 +362,13 @@ static int apple_probe_per_dcp(struct device *dev,
 
 	crtc->dcp = dcp;
 	dcp_link(dcp, crtc, connector);
+	if (apple && apple->boot_fb_valid)
+		dcp_set_boot_framebuffer(dcp, &apple->fb_r,
+					 &apple->boot_fb_r,
+					 apple->boot_fb_width,
+					 apple->boot_fb_height,
+					 apple->boot_fb_stride,
+					 apple->boot_fb_format);
 
 	return drm_connector_attach_encoder(&connector->base, &enc->base);
 }
@@ -386,6 +402,53 @@ static int apple_get_fb_resource(struct device *dev, const char *name,
 
 err:
 	of_node_put(node);
+	return ret;
+}
+
+static int apple_get_boot_fb_info(struct device *dev, struct resource *fb_r,
+				  u32 *width, u32 *height, u32 *stride,
+				  char *format, size_t format_len)
+{
+	struct device_node *chosen, *node;
+	const char *fmt;
+	int ret = -ENODEV;
+
+	chosen = of_find_node_by_path("/chosen");
+	if (!chosen)
+		return -ENODEV;
+
+	for_each_child_of_node(chosen, node) {
+		if (!of_device_is_compatible(node, "apple,simple-framebuffer") &&
+		    !of_device_is_compatible(node, "simple-framebuffer"))
+			continue;
+
+		ret = of_address_to_resource(node, 0, fb_r);
+		if (ret)
+			goto out_node;
+
+		ret = of_property_read_u32(node, "width", width);
+		if (ret)
+			goto out_node;
+
+		ret = of_property_read_u32(node, "height", height);
+		if (ret)
+			goto out_node;
+
+		ret = of_property_read_u32(node, "stride", stride);
+		if (ret)
+			goto out_node;
+
+		if (!of_property_read_string(node, "format", &fmt))
+			strscpy(format, fmt, format_len);
+		else
+			strscpy(format, "unknown", format_len);
+
+out_node:
+		of_node_put(node);
+		break;
+	}
+
+	of_node_put(chosen);
 	return ret;
 }
 
@@ -479,6 +542,25 @@ static int apple_drm_init(struct device *dev)
 		return PTR_ERR(apple);
 
 	dev_set_drvdata(dev, apple);
+	apple->fb_r = fb_r;
+
+	ret = apple_get_boot_fb_info(dev, &apple->boot_fb_r,
+				     &apple->boot_fb_width,
+				     &apple->boot_fb_height,
+				     &apple->boot_fb_stride,
+				     apple->boot_fb_format,
+				     sizeof(apple->boot_fb_format));
+	if (ret) {
+		dev_warn(dev, "failed to read /chosen simple-framebuffer: %d\n",
+			 ret);
+	} else {
+		apple->boot_fb_valid = true;
+		dev_info(dev,
+			 "firmware framebuffer visible %pR %ux%u stride=%u format=%s reserved %pR\n",
+			 &apple->boot_fb_r, apple->boot_fb_width,
+			 apple->boot_fb_height, apple->boot_fb_stride,
+			 apple->boot_fb_format, &apple->fb_r);
+	}
 
 	ret = component_bind_all(dev, apple);
 	if (ret)
