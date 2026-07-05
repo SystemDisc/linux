@@ -59,6 +59,7 @@ static const iomfb_cb_handler cb_handlers[IOMFB_MAX_CB] = {
 	[120] = dcpep_cb_boot_1,
 	[121] = trampoline_d121, /* is_dark_boot, or firmware 14.x start_hardware_boot */
 	[122] = trampoline_false, /* is_dark_boot / is_waking_from_hibernate*/
+	[123] = trampoline_d123, /* firmware 14.x callback after start_hardware_boot */
 	[124] = trampoline_read_edt_data,
 	[125] = trampoline_read_edt_data, /* firmware 14.x read_edt_data */
 	[126] = trampoline_prop_start,
