@@ -13,6 +13,7 @@ extern bool iomfb_trace_ipc;
 extern bool iomfb_d121_force_true;
 extern bool iomfb_d123_force_true;
 extern bool iomfb_skip_first_client_open;
+extern bool iomfb_skip_is_main_display;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

@@ -61,6 +61,11 @@ module_param(iomfb_skip_first_client_open, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_first_client_open,
 		 "Skip first_client_open during DCP startup for firmware-14 probing");
 
+bool iomfb_skip_is_main_display;
+module_param(iomfb_skip_is_main_display, bool, 0644);
+MODULE_PARM_DESC(iomfb_skip_is_main_display,
+		 "Skip is_main_display during DCP startup for firmware-14 probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

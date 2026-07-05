@@ -1686,6 +1686,15 @@ static void res_is_main_display(struct apple_dcp *dcp, void *out, void *cookie)
 
 static void init_3(struct apple_dcp *dcp, void *out, void *cookie)
 {
+	if (iomfb_skip_is_main_display) {
+		u32 result = 1;
+
+		dev_info(dcp->dev,
+			 "skipping dcpep_is_main_display for probe; assuming main display\n");
+		res_is_main_display(dcp, &result, NULL);
+		return;
+	}
+
 	dcp_is_main_display(dcp, false, res_is_main_display, NULL);
 }
 
