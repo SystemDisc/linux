@@ -30,6 +30,12 @@ creates no ``/sys/class/drm/card*`` device and leaves ``fb0`` on simplefb.
 The modules therefore appear loadable but unusable without matching T8122
 device-tree nodes.
 
+m1n1 exposes its raw Apple Device Tree and stage-2 log through
+``reserved-memory`` nodes with ``compatible = "phram"`` and labels ``adt``
+and ``m1n1_stage2.log``. This branch enables ``CONFIG_MTD_PHRAM=m`` so
+those nodes can be exposed as MTD devices for bring-up captures without
+using ``/dev/mem``.
+
 Public refs checked
 ===================
 
@@ -61,16 +67,41 @@ but no T8122/T603 entry.
 
 The checked T8122 device trees do not describe the hardware needed to bind
 those drivers. The live FDT exported by the booted system also contains no
-DCP, display-subsystem, MIPI, or AGX node; it only exposes the
-firmware-provided framebuffer that simplefb consumes.
+DCP, display-subsystem, MIPI, or AGX node for Linux to bind; it only
+exposes the firmware-provided framebuffer that simplefb consumes.
+
+Captured T8122 ADT data
+=======================
+
+Loading the ``phram`` module on the test system exposes:
+
+* ``/dev/mtd/by-name/adt``
+* ``/dev/mtd/by-name/m1n1_stage2.log``
+
+The captured J615/T8122 ADT contains real display and GPU nodes:
+
+* ``/arm-io/disp0``: ``disp0,t8122``
+* ``/arm-io/dcp``: ``iop,ascwrap-v6``
+* ``/arm-io/dart-dcp``: ``dart,t8110``, stream ``5`` for ``mapper-dcp``
+* ``/arm-io/dart-disp0``: ``dart,t8110``, streams ``0`` and ``4`` for
+  display and piodma
+* ``/arm-io/dispext0`` and ``/arm-io/dcpext`` for external display
+* ``/arm-io/sgx``: ``gpu,t8122``
+* ``/arm-io/gfx-asc``: ``iop,ascwrap-v6``
+
+The internal display carveouts use the same region IDs that m1n1 already
+maps for T8112: ``region-id-49``, ``region-id-50``, ``region-id-57``,
+``region-id-94``, and ``region-id-95``. The T8122 DCP/disp resources must
+still be added to the Linux device tree before m1n1 can attach those
+reserved-memory mappings to Linux device nodes.
 
 Required next data
 ==================
 
-Real DCP/KMS and AGX enablement must be based on T8122 data, not copied
-from T8112 or T602x nodes. The next safe development step is to capture or
-derive the missing T8122 hardware description, most likely with m1n1
-proxy/hypervisor tooling before Linux takes over.
+Real DCP/KMS and AGX enablement must continue to be based on T8122 data,
+not copied from T8112 or T602x nodes. The ADT capture provides the first
+set of required addresses, IRQs, stream IDs, and carveout IDs, but it does
+not by itself make the existing Linux drivers support M3.
 
 At minimum, DCP/KMS needs the T8122 DCP coprocessor resources, mailbox,
 DART stream IDs, display pipe/MIPI resources, power domains, panel wiring,
@@ -83,3 +114,8 @@ configuration, tunables, p-states, and I/O mappings.
 
 Until those facts are available, this branch should keep the simplefb path
 as the boot display path and avoid enabling DRM modules at boot.
+
+The current DCP driver only accepts firmware compatibility ``12.3.0`` or
+``13.5.0``. This J615 boot reports OS firmware ``14.7``, so native DCP/KMS
+also needs firmware-interface work before it can be expected to produce a
+DRM display.
