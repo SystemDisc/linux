@@ -586,16 +586,26 @@ static struct DCP_FW_NAME(dcp_map_reg_resp) dcpep_cb_map_reg(struct apple_dcp *d
 static struct dcp_read_edt_data_resp
 dcpep_cb_read_edt_data(struct apple_dcp *dcp, struct dcp_read_edt_data_req *req)
 {
+	struct dcp_read_edt_data_resp resp = { .ret = 0 };
+
+	memcpy(resp.value, req->value, sizeof(resp.value));
+
 	if (iomfb_trace_ipc)
 		dev_info(dcp->dev,
 			 "read_edt_data key='%.*s' count=%u value0=0x%x\n",
 			 (int)sizeof(req->key), req->key, req->count,
 			 req->value[0]);
 
-	return (struct dcp_read_edt_data_resp){
-		.value[0] = req->value[0],
-		.ret = 0,
-	};
+	if (iomfb_vid_clock_factor_override_enable && req->count > 0 &&
+	    strncmp(req->key, "vid-clock-to-disp-clock-factor",
+		    sizeof(req->key)) == 0) {
+		resp.value[0] = iomfb_vid_clock_factor_override;
+		dev_info(dcp->dev,
+			 "read_edt_data overriding vid-clock-to-disp-clock-factor: 0x%x -> 0x%x\n",
+			 req->value[0], resp.value[0]);
+	}
+
+	return resp;
 }
 
 struct dcp_default_fb_surface_req {

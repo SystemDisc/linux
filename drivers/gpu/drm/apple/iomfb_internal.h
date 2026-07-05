@@ -22,6 +22,8 @@ extern bool iomfb_power_before_display_device;
 extern bool iomfb_update_notify_clients;
 extern bool iomfb_dfb_allocated;
 extern uint iomfb_create_default_fb_surface_ret;
+extern bool iomfb_vid_clock_factor_override_enable;
+extern uint iomfb_vid_clock_factor_override;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

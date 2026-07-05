@@ -106,6 +106,16 @@ module_param(iomfb_create_default_fb_surface_ret, uint, 0644);
 MODULE_PARM_DESC(iomfb_create_default_fb_surface_ret,
 		 "Return value for create_default_fb_surface callback during firmware probing");
 
+bool iomfb_vid_clock_factor_override_enable;
+module_param(iomfb_vid_clock_factor_override_enable, bool, 0644);
+MODULE_PARM_DESC(iomfb_vid_clock_factor_override_enable,
+		 "Override vid-clock-to-disp-clock-factor EDT value for firmware probing");
+
+uint iomfb_vid_clock_factor_override;
+module_param(iomfb_vid_clock_factor_override, uint, 0644);
+MODULE_PARM_DESC(iomfb_vid_clock_factor_override,
+		 "Replacement vid-clock-to-disp-clock-factor EDT value when override is enabled");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
