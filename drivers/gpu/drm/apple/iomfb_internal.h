@@ -30,6 +30,7 @@ extern uint iomfb_vid_clock_factor_override;
 extern bool iomfb_vid_clock_factor_success;
 extern bool iomfb_skip_invalid_modeset;
 extern bool iomfb_skip_flush_invalid_mode;
+extern uint iomfb_default_stride_override;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

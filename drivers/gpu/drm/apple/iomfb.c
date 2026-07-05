@@ -146,6 +146,11 @@ module_param(iomfb_skip_flush_invalid_mode, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_flush_invalid_mode,
 		 "Skip IOMFB flush/swap while DCP hotplug has not reported a valid mode");
 
+uint iomfb_default_stride_override;
+module_param(iomfb_default_stride_override, uint, 0644);
+MODULE_PARM_DESC(iomfb_default_stride_override,
+		 "Return this stride from D101 get_display_default_stride instead of zero");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

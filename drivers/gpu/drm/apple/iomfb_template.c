@@ -805,6 +805,15 @@ dcpep_cb_create_default_fb_surface(struct apple_dcp *dcp,
 	return iomfb_create_default_fb_surface_ret;
 }
 
+static u32 dcpep_cb_get_display_default_stride(struct apple_dcp *dcp)
+{
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev, "get_display_default_stride returning %u\n",
+			 iomfb_default_stride_override);
+
+	return iomfb_default_stride_override;
+}
+
 static void iomfbep_cb_enable_backlight_message_ap_gated(struct apple_dcp *dcp,
 							 u8 *enabled)
 {
@@ -1614,6 +1623,8 @@ TRAMPOLINE_VOID(trampoline_nop, dcpep_cb_nop);
 TRAMPOLINE_OUT(trampoline_true, dcpep_cb_true, u8);
 TRAMPOLINE_OUT(trampoline_false, dcpep_cb_false, u8);
 TRAMPOLINE_OUT(trampoline_zero, dcpep_cb_zero, u32);
+TRAMPOLINE_OUT(trampoline_get_display_default_stride,
+	       dcpep_cb_get_display_default_stride, u32);
 TRAMPOLINE_OUT(trampoline_d121, dcpep_cb_d121, u32);
 TRAMPOLINE_OUT(trampoline_d123, dcpep_cb_d123, u32);
 TRAMPOLINE_OUT(trampoline_is_dfb_allocated, dcpep_cb_is_dfb_allocated, u8);
