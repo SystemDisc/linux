@@ -357,7 +357,7 @@ struct dcp_read_edt_data_req {
 
 struct dcp_read_edt_data_resp {
 	u32 value[8];
-	u8 ret;
+	u32 ret;
 } __packed;
 
 struct iomfb_property {

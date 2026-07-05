@@ -600,9 +600,10 @@ dcpep_cb_read_edt_data(struct apple_dcp *dcp, struct dcp_read_edt_data_req *req)
 	    strncmp(req->key, "vid-clock-to-disp-clock-factor",
 		    sizeof(req->key)) == 0) {
 		resp.value[0] = iomfb_vid_clock_factor_override;
+		resp.ret = iomfb_vid_clock_factor_success ? 1 : 0;
 		dev_info(dcp->dev,
-			 "read_edt_data overriding vid-clock-to-disp-clock-factor: 0x%x -> 0x%x\n",
-			 req->value[0], resp.value[0]);
+			 "read_edt_data overriding vid-clock-to-disp-clock-factor: 0x%x -> 0x%x ret=%u\n",
+			 req->value[0], resp.value[0], resp.ret);
 	}
 
 	return resp;

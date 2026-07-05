@@ -116,6 +116,11 @@ module_param(iomfb_vid_clock_factor_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_vid_clock_factor_override,
 		 "Replacement vid-clock-to-disp-clock-factor EDT value when override is enabled");
 
+bool iomfb_vid_clock_factor_success;
+module_param(iomfb_vid_clock_factor_success, bool, 0644);
+MODULE_PARM_DESC(iomfb_vid_clock_factor_success,
+		 "Return success for vid-clock-to-disp-clock-factor EDT reads");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
