@@ -595,6 +595,7 @@ static int apple_drm_init(struct device *dev)
 		goto err_unbind;
 
 	drm_mode_config_reset(&apple->drm);
+	drmm_kms_helper_poll_init(&apple->drm);
 
 	if (preserve_simplefb) {
 		dev_warn(dev,
@@ -612,6 +613,9 @@ static int apple_drm_init(struct device *dev)
 	ret = drm_dev_register(&apple->drm, 0);
 	if (ret)
 		goto err_unbind;
+
+	if (drm_helper_hpd_irq_event(&apple->drm))
+		dev_info(dev, "post-registration HPD event advertised current DCP connector state\n");
 
 	if (!preserve_simplefb)
 		drm_client_setup_with_fourcc(&apple->drm, DRM_FORMAT_XRGB8888);
