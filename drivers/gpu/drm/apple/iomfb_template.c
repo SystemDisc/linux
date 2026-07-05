@@ -116,18 +116,6 @@ static u32 dcpep_cb_zero(struct apple_dcp *dcp)
 	return 0;
 }
 
-static bool __maybe_unused dcpep_cb_d125_zero_ack(struct apple_dcp *dcp,
-						  int tag, void *out, void *in)
-{
-	trace_iomfb_callback(dcp, tag, __func__);
-
-	if (iomfb_trace_ipc)
-		dev_info(dcp->dev,
-			 "D125 firmware-14.x callback: acking zeroed output\n");
-
-	return true;
-}
-
 static void dcpep_cb_swap_complete(struct apple_dcp *dcp,
 				   struct DCP_FW_NAME(dc_swap_complete_resp) *resp)
 {
@@ -501,6 +489,12 @@ static struct DCP_FW_NAME(dcp_map_reg_resp) dcpep_cb_map_reg(struct apple_dcp *d
 static struct dcp_read_edt_data_resp
 dcpep_cb_read_edt_data(struct apple_dcp *dcp, struct dcp_read_edt_data_req *req)
 {
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "read_edt_data key='%.*s' count=%u value0=0x%x\n",
+			 (int)sizeof(req->key), req->key, req->count,
+			 req->value[0]);
+
 	return (struct dcp_read_edt_data_resp){
 		.value[0] = req->value[0],
 		.ret = 0,
