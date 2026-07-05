@@ -1801,9 +1801,19 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 		return -EIO;
 	}
 
+	if (iomfb_skip_invalid_modeset && !dcp->valid_mode) {
+		dev_info(dcp->dev,
+			 "skipping set_digital_out_mode for invalid hotplug mode color:%d timing:%d "
+			 DRM_MODE_FMT "\n",
+			 mode->color_mode_id, mode->timing_mode_id,
+			 DRM_MODE_ARG(&crtc_state->mode));
+		return -EIO;
+	}
+
 	dev_info(dcp->dev,
-		 "set_digital_out_mode(color:%d timing:%d) " DRM_MODE_FMT "\n",
+		 "set_digital_out_mode(color:%d timing:%d valid:%d) " DRM_MODE_FMT "\n",
 		 mode->color_mode_id, mode->timing_mode_id,
+		 dcp->valid_mode,
 		 DRM_MODE_ARG(&crtc_state->mode));
 	if (mode->color_mode_id == mode->sdr_rgb.id)
 		cmode = &mode->sdr_rgb;

@@ -136,6 +136,11 @@ module_param(iomfb_vid_clock_factor_success, bool, 0644);
 MODULE_PARM_DESC(iomfb_vid_clock_factor_success,
 		 "Return success for vid-clock-to-disp-clock-factor EDT reads");
 
+bool iomfb_skip_invalid_modeset;
+module_param(iomfb_skip_invalid_modeset, bool, 0644);
+MODULE_PARM_DESC(iomfb_skip_invalid_modeset,
+		 "Skip set_digital_out_mode while DCP hotplug has not reported a valid mode");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
