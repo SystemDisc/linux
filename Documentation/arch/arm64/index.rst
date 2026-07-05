@@ -11,6 +11,7 @@ ARM64 Architecture
     amu
     arm-acpi
     arm-cca
+    apple-m3-display-gpu-status
     asymmetric-32bit
     booting
     cpu-feature-registers
