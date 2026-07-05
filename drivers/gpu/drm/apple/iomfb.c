@@ -51,6 +51,11 @@ module_param(iomfb_d121_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d121_force_true,
 		 "Return true from D121 for probing firmware-14 callback tables");
 
+bool iomfb_d121_run_boot_sequence;
+module_param(iomfb_d121_run_boot_sequence, bool, 0644);
+MODULE_PARM_DESC(iomfb_d121_run_boot_sequence,
+		 "Handle D121 as start_hardware_boot by running the DCP boot sequence");
+
 bool iomfb_d123_force_true = true;
 module_param(iomfb_d123_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d123_force_true,

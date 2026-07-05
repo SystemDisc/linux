@@ -1035,6 +1035,32 @@ static bool dcpep_cb_boot_1(struct apple_dcp *dcp, int tag, void *out, void *in)
 	return false;
 }
 
+static bool __maybe_unused dcpep_cb_d121_or_boot_1(struct apple_dcp *dcp, int tag,
+						   void *out, void *in)
+{
+	u32 out_value;
+
+	if (iomfb_d121_run_boot_sequence) {
+		trace_iomfb_callback(dcp, tag, "dcpep_cb_d121_boot_1");
+		dev_info(dcp->dev,
+			 "D121 handling as start_hardware_boot; running boot sequence\n");
+		dcp_set_create_dfb(dcp, false, boot_1_5, NULL);
+		return false;
+	}
+
+	trace_iomfb_callback(dcp, tag, "dcpep_cb_d121");
+	out_value = iomfb_d121_force_true ? 1 : 0;
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev, "D121 returning %u\n", out_value);
+
+	if (dcp->callback_out_len >= sizeof(out_value))
+		memcpy(out, &out_value, sizeof(out_value));
+	else if (dcp->callback_out_len)
+		memcpy(out, &out_value, dcp->callback_out_len);
+
+	return true;
+}
+
 static struct dcp_allocate_bandwidth_resp dcpep_cb_allocate_bandwidth(struct apple_dcp *dcp,
 						struct dcp_allocate_bandwidth_req *req)
 {
