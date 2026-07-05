@@ -36,6 +36,11 @@ module_param(iomfb_shmem_flag, uint, 0644);
 MODULE_PARM_DESC(iomfb_shmem_flag,
 		 "IOMFB SET_SHMEM flag nibble; default matches supported DCP firmware");
 
+static u64 iomfb_shmem_dva_or;
+module_param(iomfb_shmem_dva_or, ullong, 0644);
+MODULE_PARM_DESC(iomfb_shmem_dva_or,
+		 "Debug mask ORed into the IOMFB SET_SHMEM DVA before sending");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
@@ -533,14 +538,27 @@ void iomfb_recv_msg(struct apple_dcp *dcp, u64 message)
 int iomfb_start_rtkit(struct apple_dcp *dcp)
 {
 	dma_addr_t shmem_iova;
+	dma_addr_t shmem_msg_dva;
+	phys_addr_t shmem_phys = 0;
+	struct iommu_domain *domain;
+
 	apple_rtkit_start_ep(dcp->rtk, IOMFB_ENDPOINT);
 
 	dcp->shmem = dma_alloc_coherent(dcp->dev, DCP_SHMEM_SIZE, &shmem_iova,
 					GFP_KERNEL);
+	if (!dcp->shmem)
+		return -ENOMEM;
 
-	dev_info(dcp->dev, "IOMFB SET_SHMEM iova=%pad flag=0x%x\n",
-		 &shmem_iova, iomfb_shmem_flag & 0xf);
-	dcp_send_message(dcp, IOMFB_ENDPOINT, dcpep_set_shmem(shmem_iova));
+	shmem_msg_dva = shmem_iova | iomfb_shmem_dva_or;
+	domain = iommu_get_domain_for_dev(dcp->dev);
+	if (domain)
+		shmem_phys = iommu_iova_to_phys(domain, shmem_iova);
+
+	dev_info(dcp->dev,
+		 "IOMFB SET_SHMEM iova=%pad msg_dva=%pad phys=%pa flag=0x%x dva_or=0x%llx\n",
+		 &shmem_iova, &shmem_msg_dva, &shmem_phys,
+		 iomfb_shmem_flag & 0xf, iomfb_shmem_dva_or);
+	dcp_send_message(dcp, IOMFB_ENDPOINT, dcpep_set_shmem(shmem_msg_dva));
 
 	return 0;
 }
