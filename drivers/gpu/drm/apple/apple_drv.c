@@ -51,6 +51,11 @@ module_param(dcp_start_timeout_ms, uint, 0644);
 MODULE_PARM_DESC(dcp_start_timeout_ms,
 		 "Timeout in ms for DCP startup during DRM bind");
 
+static bool preserve_simplefb;
+module_param(preserve_simplefb, bool, 0644);
+MODULE_PARM_DESC(preserve_simplefb,
+		 "Diagnostic mode: keep the firmware framebuffer and skip DRM fbdev setup");
+
 struct apple_drm_private {
 	struct drm_device drm;
 };
@@ -509,19 +514,25 @@ static int apple_drm_init(struct device *dev)
 
 	drm_mode_config_reset(&apple->drm);
 
-	fb_size = fb_r.end - fb_r.start + 1;
-	ret = aperture_remove_conflicting_devices(fb_r.start, fb_size,
-						  apple_drm_driver.name);
-	if (ret) {
-		dev_err(dev, "Failed remove fb: %d\n", ret);
-		goto err_unbind;
+	if (preserve_simplefb) {
+		dev_warn(dev,
+			 "preserve_simplefb=1: keeping firmware framebuffer and skipping DRM fbdev setup\n");
+	} else {
+		fb_size = fb_r.end - fb_r.start + 1;
+		ret = aperture_remove_conflicting_devices(fb_r.start, fb_size,
+							  apple_drm_driver.name);
+		if (ret) {
+			dev_err(dev, "Failed remove fb: %d\n", ret);
+			goto err_unbind;
+		}
 	}
 
 	ret = drm_dev_register(&apple->drm, 0);
 	if (ret)
 		goto err_unbind;
 
-	drm_client_setup_with_fourcc(&apple->drm, DRM_FORMAT_XRGB8888);
+	if (!preserve_simplefb)
+		drm_client_setup_with_fourcc(&apple->drm, DRM_FORMAT_XRGB8888);
 
 	return 0;
 
