@@ -1049,7 +1049,38 @@ void DCP_FW_NAME(iomfb_poweron)(struct apple_dcp *dcp)
 		dcp_set_display_device(dcp, false, &handle,
 				       dcp_on_set_parameter, cookie);
 	}
-	ret = wait_for_completion_timeout(&cookie->done, msecs_to_jiffies(10000));
+	if (iomfb_poll_during_power_wait) {
+		long left = msecs_to_jiffies(10000);
+
+		ret = 0;
+		while (left > 0) {
+			long slice = min_t(long, left, msecs_to_jiffies(25));
+			long wait_ret;
+			int polls;
+
+			wait_ret = wait_for_completion_timeout(&cookie->done,
+							       slice);
+			if (wait_ret > 0) {
+				ret = wait_ret;
+				break;
+			}
+
+			polls = apple_rtkit_poll(dcp->rtk);
+			if (polls)
+				dev_info(dcp->dev,
+					 "dcp_poweron: polled %d RTKit message(s) while waiting for power\n",
+					 polls);
+			if (completion_done(&cookie->done)) {
+				ret = 1;
+				break;
+			}
+
+			left -= slice;
+		}
+	} else {
+		ret = wait_for_completion_timeout(&cookie->done,
+						  msecs_to_jiffies(10000));
+	}
 
 	if (ret == 0) {
 		dev_warn(dcp->dev, "wait for power timed out, connector will be broken\n");
