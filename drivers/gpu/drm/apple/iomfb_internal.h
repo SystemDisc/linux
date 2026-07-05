@@ -10,6 +10,7 @@
 struct apple_dcp;
 
 extern bool iomfb_trace_ipc;
+extern bool iomfb_d121_force_true;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

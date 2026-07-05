@@ -46,6 +46,11 @@ module_param(iomfb_trace_ipc, bool, 0644);
 MODULE_PARM_DESC(iomfb_trace_ipc,
 		 "Trace IOMFB method and callback tags in dmesg");
 
+bool iomfb_d121_force_true;
+module_param(iomfb_d121_force_true, bool, 0644);
+MODULE_PARM_DESC(iomfb_d121_force_true,
+		 "Return true from D121 for probing firmware-14 callback tables");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

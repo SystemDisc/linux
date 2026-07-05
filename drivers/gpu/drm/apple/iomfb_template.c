@@ -116,6 +116,15 @@ static u32 dcpep_cb_zero(struct apple_dcp *dcp)
 	return 0;
 }
 
+static u32 dcpep_cb_d121(struct apple_dcp *dcp)
+{
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev, "D121 returning %u\n",
+			 iomfb_d121_force_true ? 1 : 0);
+
+	return iomfb_d121_force_true ? 1 : 0;
+}
+
 static void dcpep_log_key(const struct apple_dcp *dcp, const char *name,
 			  const char *key, size_t key_size)
 {
@@ -1162,6 +1171,7 @@ TRAMPOLINE_VOID(trampoline_nop, dcpep_cb_nop);
 TRAMPOLINE_OUT(trampoline_true, dcpep_cb_true, u8);
 TRAMPOLINE_OUT(trampoline_false, dcpep_cb_false, u8);
 TRAMPOLINE_OUT(trampoline_zero, dcpep_cb_zero, u32);
+TRAMPOLINE_OUT(trampoline_d121, dcpep_cb_d121, u32);
 TRAMPOLINE_INOUT(trampoline_set_number_property, dcpep_cb_set_number_property,
 		 struct dcp_set_number_property_req, u8);
 TRAMPOLINE_INOUT(trampoline_set_property_dict, dcpep_cb_set_property_dict,
