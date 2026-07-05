@@ -25,6 +25,11 @@ arguments intentionally blacklist ``appledrm``, ``adpdrm``,
 ``adpdrm_mipi``, and ``asahi`` so that an incomplete DRM probe cannot
 take away the known-good framebuffer TTY.
 
+An explicit runtime ``modprobe`` of those four modules succeeds, but it
+creates no ``/sys/class/drm/card*`` device and leaves ``fb0`` on simplefb.
+The modules therefore appear loadable but unusable without matching T8122
+device-tree nodes.
+
 Public refs checked
 ===================
 
