@@ -756,6 +756,38 @@ static u8 dcpep_cb_prop_end(struct apple_dcp *dcp,
 	return resp;
 }
 
+static bool __maybe_unused trampoline_prop_end_or_chunk(struct apple_dcp *dcp,
+							int tag, void *out,
+							void *in)
+{
+	u32 out_value;
+	u8 resp;
+
+	trace_iomfb_callback(dcp, tag, "dcpep_cb_prop_end_or_chunk");
+
+	if (dcp->callback_in_len == sizeof(struct dcp_set_dcpav_prop_chunk_req)) {
+		if (iomfb_trace_ipc)
+			dev_info(dcp->dev,
+				 "DCPAV D128 using prop-chunk shape out=%u\n",
+				 dcp->callback_out_len);
+		resp = dcpep_cb_prop_chunk(dcp, in);
+	} else {
+		if (iomfb_trace_ipc)
+			dev_info(dcp->dev,
+				 "DCPAV D128 using prop-end shape in=%u out=%u\n",
+				 dcp->callback_in_len, dcp->callback_out_len);
+		resp = dcpep_cb_prop_end(dcp, in);
+	}
+
+	out_value = resp ? 1 : 0;
+	if (dcp->callback_out_len >= sizeof(out_value))
+		memcpy(out, &out_value, sizeof(out_value));
+	else if (dcp->callback_out_len)
+		memcpy(out, &out_value, dcp->callback_out_len);
+
+	return true;
+}
+
 /* Boot sequence */
 static void boot_done(struct apple_dcp *dcp, void *out, void *cookie)
 {
@@ -815,6 +847,41 @@ static struct dcp_allocate_bandwidth_resp dcpep_cb_allocate_bandwidth(struct app
 		.unk2 = req->unk2,
 		.ret = 1,
 	};
+}
+
+static bool __maybe_unused trampoline_allocate_bandwidth_or_prop_end(struct apple_dcp *dcp,
+								     int tag,
+								     void *out,
+								     void *in)
+{
+	trace_iomfb_callback(dcp, tag, "dcpep_cb_allocate_bandwidth_or_prop_end");
+
+	if (dcp->callback_in_len == sizeof(struct dcp_set_dcpav_prop_end_req) &&
+	    dcp->callback_out_len <= sizeof(u32)) {
+		u32 out_value;
+		u8 resp;
+
+		if (iomfb_trace_ipc)
+			dev_info(dcp->dev,
+				 "DCPAV D129 using prop-end shape out=%u\n",
+				 dcp->callback_out_len);
+		resp = dcpep_cb_prop_end(dcp, in);
+		out_value = resp ? 1 : 0;
+		if (dcp->callback_out_len >= sizeof(out_value))
+			memcpy(out, &out_value, sizeof(out_value));
+		else if (dcp->callback_out_len)
+			memcpy(out, &out_value, dcp->callback_out_len);
+	} else {
+		struct dcp_allocate_bandwidth_resp *typed_out = out;
+
+		if (iomfb_trace_ipc)
+			dev_info(dcp->dev,
+				 "DCPAV D129 using allocate-bandwidth shape in=%u out=%u\n",
+				 dcp->callback_in_len, dcp->callback_out_len);
+		*typed_out = dcpep_cb_allocate_bandwidth(dcp, in);
+	}
+
+	return true;
 }
 
 static struct dcp_rt_bandwidth dcpep_cb_rt_bandwidth(struct apple_dcp *dcp)
