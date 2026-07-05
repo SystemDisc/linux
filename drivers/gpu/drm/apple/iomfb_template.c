@@ -1009,18 +1009,30 @@ static void dcp_on_set_power_state(struct apple_dcp *dcp, void *out, void *cooki
 	dcp_set_power_state(dcp, false, &req, dcp_on_final, cookie);
 }
 
+static u32 dcp_set_parameter_count(void)
+{
+#if DCP_FW_VER >= DCP_FW_VERSION(13, 2, 0)
+	u32 count = 3;
+#else
+	u32 count = 1;
+#endif
+
+	if (iomfb_set_parameter_count_override)
+		count = iomfb_set_parameter_count_override;
+
+	return count;
+}
+
 static void dcp_on_set_parameter(struct apple_dcp *dcp, void *out, void *cookie)
 {
 	struct dcp_set_parameter_dcp param = {
 		.param = IOMFBPARAM_ADAPTIVE_SYNC,
 		.value = { 0 },
-#if DCP_FW_VER >= DCP_FW_VERSION(13, 2, 0)
-		.count = 3,
-#else
-		.count = 1,
-#endif
+		.count = dcp_set_parameter_count(),
 	};
 
+	dev_info(dcp->dev, "set_parameter_dcp adaptive-sync count:%u\n",
+		 param.count);
 	dcp_set_parameter_dcp(dcp, false, &param, dcp_on_set_power_state, cookie);
 }
 
@@ -1042,8 +1054,11 @@ void DCP_FW_NAME(iomfb_poweron)(struct apple_dcp *dcp)
 
 	if (dcp->main_display) {
 		handle = 0;
-		dcp_set_display_device(dcp, false, &handle, dcp_on_set_power_state,
-				       cookie);
+		dcp_set_display_device(dcp, false, &handle,
+				       iomfb_set_parameter_on_main ?
+					       dcp_on_set_parameter :
+					       dcp_on_set_power_state,
+					       cookie);
 	} else {
 		handle = 2;
 		dcp_set_display_device(dcp, false, &handle,

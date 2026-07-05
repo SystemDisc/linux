@@ -16,6 +16,8 @@ extern bool iomfb_skip_first_client_open;
 extern bool iomfb_skip_is_main_display;
 extern bool iomfb_poll_during_modeset_wait;
 extern bool iomfb_poll_during_power_wait;
+extern bool iomfb_set_parameter_on_main;
+extern uint iomfb_set_parameter_count_override;
 
 typedef void (*dcp_callback_t)(struct apple_dcp *, void *, void *);
 

@@ -76,6 +76,16 @@ module_param(iomfb_poll_during_power_wait, bool, 0644);
 MODULE_PARM_DESC(iomfb_poll_during_power_wait,
 		 "Poll RTKit while waiting for IOMFB display power state");
 
+bool iomfb_set_parameter_on_main;
+module_param(iomfb_set_parameter_on_main, bool, 0644);
+MODULE_PARM_DESC(iomfb_set_parameter_on_main,
+		 "Call set_parameter_dcp on the main display power-on path");
+
+uint iomfb_set_parameter_count_override;
+module_param(iomfb_set_parameter_count_override, uint, 0644);
+MODULE_PARM_DESC(iomfb_set_parameter_count_override,
+		 "Override set_parameter_dcp count for firmware probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
