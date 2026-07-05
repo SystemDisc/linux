@@ -307,6 +307,29 @@ struct dcp_set_dcpav_prop_end_req {
 	char key[0x40];
 } __packed;
 
+struct dcp_set_number_property_req {
+	char key[0x40];
+	u32 value;
+} __packed;
+
+struct dcp_set_property_dict_req {
+	char key[0x40];
+	u8 data[0x1000];
+	u32 length;
+} __packed;
+
+struct dcp_set_property_int_req {
+	char key[0x40];
+	u64 value;
+	u32 flags;
+} __packed;
+
+struct dcp_set_property_bool_req {
+	char key[0x40];
+	u8 value;
+	u8 padding[7];
+} __packed;
+
 struct dcp_set_parameter_dcp {
 	u32 param;
 	u32 value[8];

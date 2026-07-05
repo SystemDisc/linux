@@ -116,6 +116,72 @@ static u32 dcpep_cb_zero(struct apple_dcp *dcp)
 	return 0;
 }
 
+static void dcpep_log_key(const struct apple_dcp *dcp, const char *name,
+			  const char *key, size_t key_size)
+{
+	size_t len;
+
+	if (!iomfb_trace_ipc)
+		return;
+
+	len = strnlen(key, key_size);
+	dev_info(dcp->dev, "%s key='%.*s' key_hex=%*phN\n", name, (int)len,
+		 key, (int)min_t(size_t, key_size, 16), key);
+}
+
+static u8 dcpep_cb_set_number_property(struct apple_dcp *dcp,
+				       struct dcp_set_number_property_req *req)
+{
+	if (iomfb_trace_ipc) {
+		dcpep_log_key(dcp, "set_number_property", req->key,
+			      sizeof(req->key));
+		dev_info(dcp->dev, "set_number_property value=0x%x\n",
+			 req->value);
+	}
+
+	return true;
+}
+
+static u8 dcpep_cb_set_property_dict(struct apple_dcp *dcp,
+				     struct dcp_set_property_dict_req *req)
+{
+	if (iomfb_trace_ipc) {
+		dcpep_log_key(dcp, "set_property_dict", req->key,
+			      sizeof(req->key));
+		dev_info(dcp->dev,
+			 "set_property_dict length=0x%x data0=%*phN\n",
+			 req->length, 64, req->data);
+	}
+
+	return true;
+}
+
+static u8 dcpep_cb_set_property_int(struct apple_dcp *dcp,
+				    struct dcp_set_property_int_req *req)
+{
+	if (iomfb_trace_ipc) {
+		dcpep_log_key(dcp, "set_property_int", req->key,
+			      sizeof(req->key));
+		dev_info(dcp->dev, "set_property_int value=0x%llx flags=0x%x\n",
+			 req->value, req->flags);
+	}
+
+	return true;
+}
+
+static u8 dcpep_cb_set_property_bool(struct apple_dcp *dcp,
+				     struct dcp_set_property_bool_req *req)
+{
+	if (iomfb_trace_ipc) {
+		dcpep_log_key(dcp, "set_property_bool", req->key,
+			      sizeof(req->key));
+		dev_info(dcp->dev, "set_property_bool value=%u\n",
+			 req->value);
+	}
+
+	return true;
+}
+
 static void dcpep_cb_swap_complete(struct apple_dcp *dcp,
 				   struct DCP_FW_NAME(dc_swap_complete_resp) *resp)
 {
@@ -1096,6 +1162,14 @@ TRAMPOLINE_VOID(trampoline_nop, dcpep_cb_nop);
 TRAMPOLINE_OUT(trampoline_true, dcpep_cb_true, u8);
 TRAMPOLINE_OUT(trampoline_false, dcpep_cb_false, u8);
 TRAMPOLINE_OUT(trampoline_zero, dcpep_cb_zero, u32);
+TRAMPOLINE_INOUT(trampoline_set_number_property, dcpep_cb_set_number_property,
+		 struct dcp_set_number_property_req, u8);
+TRAMPOLINE_INOUT(trampoline_set_property_dict, dcpep_cb_set_property_dict,
+		 struct dcp_set_property_dict_req, u8);
+TRAMPOLINE_INOUT(trampoline_set_property_int, dcpep_cb_set_property_int,
+		 struct dcp_set_property_int_req, u8);
+TRAMPOLINE_INOUT(trampoline_set_property_bool, dcpep_cb_set_property_bool,
+		 struct dcp_set_property_bool_req, u8);
 TRAMPOLINE_IN(trampoline_swap_complete, dcpep_cb_swap_complete,
 	      struct DCP_FW_NAME(dc_swap_complete_resp));
 TRAMPOLINE_INOUT(trampoline_get_uint_prop, dcpep_cb_get_uint_prop,
