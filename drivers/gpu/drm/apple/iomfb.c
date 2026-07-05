@@ -141,6 +141,11 @@ module_param(iomfb_skip_invalid_modeset, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_invalid_modeset,
 		 "Skip set_digital_out_mode while DCP hotplug has not reported a valid mode");
 
+bool iomfb_skip_flush_invalid_mode;
+module_param(iomfb_skip_flush_invalid_mode, bool, 0644);
+MODULE_PARM_DESC(iomfb_skip_flush_invalid_mode,
+		 "Skip IOMFB flush/swap while DCP hotplug has not reported a valid mode");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
@@ -653,6 +658,13 @@ void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct platform_device *pdev = to_apple_crtc(crtc)->dcp;
 	struct apple_dcp *dcp = platform_get_drvdata(pdev);
+
+	if (iomfb_skip_flush_invalid_mode && !dcp->valid_mode) {
+		dev_info(dcp->dev,
+			 "skipping IOMFB flush/swap because valid_mode is false\n");
+		schedule_work(&dcp->vblank_wq);
+		return;
+	}
 
 	if (dcp_channel_busy(&dcp->ch_cmd))
 	{
