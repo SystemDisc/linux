@@ -320,19 +320,22 @@ struct dcp_set_number_property_req {
 struct dcp_set_property_dict_req {
 	char key[0x40];
 	u8 data[0x1000];
-	u32 length;
+	u8 value_null;
+	u8 padding[3];
 } __packed;
 
 struct dcp_set_property_int_req {
 	char key[0x40];
 	u64 value;
-	u32 flags;
+	u8 value_null;
+	u8 padding[3];
 } __packed;
 
 struct dcp_set_property_bool_req {
 	char key[0x40];
-	u8 value;
-	u8 padding[7];
+	u32 value;
+	u8 value_null;
+	u8 padding[3];
 } __packed;
 
 struct dcp_set_parameter_dcp {

@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/soc/apple/rtkit.h>
+#include <linux/unaligned.h>
 
 #include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
@@ -160,6 +161,173 @@ static void dcpep_log_key(const struct apple_dcp *dcp, const char *name,
 		 key, (int)min_t(size_t, key_size, 16), key);
 }
 
+static const u8 *dcpep_osobj_skip(const u8 *p, const u8 *end, unsigned int depth);
+
+static const u8 *dcpep_osobj_read_string(const u8 *p, const u8 *end,
+					 const char **str, u32 *len)
+{
+	if (end - p < 5 || *p != 's')
+		return NULL;
+
+	p++;
+	*len = get_unaligned_le32(p);
+	p += sizeof(u32);
+
+	if (*len > end - p || *len > U8_MAX)
+		return NULL;
+
+	*str = p;
+	p += *len;
+
+	if (p >= end || *p)
+		return NULL;
+
+	return p + 1;
+}
+
+static const u8 *dcpep_osobj_skip(const u8 *p, const u8 *end, unsigned int depth)
+{
+	u32 count;
+
+	if (!p || p >= end || depth > 4)
+		return NULL;
+
+	switch (*p++) {
+	case 'n':
+		if (end - p < sizeof(u64))
+			return NULL;
+		return p + sizeof(u64);
+	case 's': {
+		u32 len;
+
+		if (end - p < sizeof(u32))
+			return NULL;
+		len = get_unaligned_le32(p);
+		p += sizeof(u32);
+		if (len > end - p || p + len >= end || p[len])
+			return NULL;
+		return p + len + 1;
+	}
+	case 'd':
+		if (end - p < sizeof(u32))
+			return NULL;
+		count = get_unaligned_le32(p);
+		p += sizeof(u32);
+		for (u32 i = 0; i < count; i++) {
+			p = dcpep_osobj_skip(p, end, depth + 1);
+			p = dcpep_osobj_skip(p, end, depth + 1);
+			if (!p)
+				return NULL;
+		}
+		return p;
+	default:
+		return NULL;
+	}
+}
+
+static void dcpep_log_osdict(struct apple_dcp *dcp, const char *name,
+			     const u8 *data, size_t size)
+{
+	const u8 *p = data;
+	const u8 *end = data + size;
+	u32 count;
+
+	if (!iomfb_trace_ipc)
+		return;
+
+	if (end - p < 5 || *p != 'd') {
+		dev_info(dcp->dev, "%s osdict: not a dictionary tag=0x%02x\n",
+			 name, p < end ? *p : 0);
+		return;
+	}
+
+	p++;
+	count = get_unaligned_le32(p);
+	p += sizeof(u32);
+
+	dev_info(dcp->dev, "%s osdict count=%u\n", name, count);
+
+	for (u32 i = 0; i < min_t(u32, count, 24); i++) {
+		const char *key;
+		u32 key_len;
+
+		p = dcpep_osobj_read_string(p, end, &key, &key_len);
+		if (!p) {
+			dev_info(dcp->dev, "%s osdict entry[%u]: bad key\n",
+				 name, i);
+			return;
+		}
+
+		if (p >= end) {
+			dev_info(dcp->dev, "%s osdict entry[%u] key='%.*s': missing value\n",
+				 name, i, (int)key_len, key);
+			return;
+		}
+
+		switch (*p) {
+		case 'n':
+			if (end - p < 1 + sizeof(u64)) {
+				dev_info(dcp->dev,
+					 "%s osdict entry[%u] key='%.*s': short number\n",
+					 name, i, (int)key_len, key);
+				return;
+			}
+			dev_info(dcp->dev,
+				 "%s osdict entry[%u] key='%.*s' number=0x%llx\n",
+				 name, i, (int)key_len, key,
+				 get_unaligned_le64(p + 1));
+			p += 1 + sizeof(u64);
+			break;
+		case 's': {
+			const char *value;
+			u32 value_len;
+
+			p = dcpep_osobj_read_string(p, end, &value, &value_len);
+			if (!p) {
+				dev_info(dcp->dev,
+					 "%s osdict entry[%u] key='%.*s': bad string value\n",
+					 name, i, (int)key_len, key);
+				return;
+			}
+			dev_info(dcp->dev,
+				 "%s osdict entry[%u] key='%.*s' string='%.*s'\n",
+				 name, i, (int)key_len, key,
+				 (int)value_len, value);
+			break;
+		}
+		case 'd': {
+			const u8 *value = p;
+			u32 dict_count;
+
+			if (end - p < 5) {
+				dev_info(dcp->dev,
+					 "%s osdict entry[%u] key='%.*s': short dict value\n",
+					 name, i, (int)key_len, key);
+				return;
+			}
+			dict_count = get_unaligned_le32(p + 1);
+			p = dcpep_osobj_skip(p, end, 0);
+			if (!p) {
+				dev_info(dcp->dev,
+					 "%s osdict entry[%u] key='%.*s': bad nested dict\n",
+					 name, i, (int)key_len, key);
+				return;
+			}
+			dev_info(dcp->dev,
+				 "%s osdict entry[%u] key='%.*s' dict_count=%u data0=%*phN\n",
+				 name, i, (int)key_len, key, dict_count,
+				 (int)min_t(size_t, (size_t)(p - value), 32), value);
+			break;
+		}
+		default:
+			dev_info(dcp->dev,
+				 "%s osdict entry[%u] key='%.*s': unknown value tag=0x%02x\n",
+				 name, i, (int)key_len, key, *p);
+			return;
+		}
+	}
+}
+
 static u8 dcpep_cb_set_number_property(struct apple_dcp *dcp,
 				       struct dcp_set_number_property_req *req)
 {
@@ -180,8 +348,10 @@ static u8 dcpep_cb_set_property_dict(struct apple_dcp *dcp,
 		dcpep_log_key(dcp, "set_property_dict", req->key,
 			      sizeof(req->key));
 		dev_info(dcp->dev,
-			 "set_property_dict length=0x%x data0=%*phN\n",
-			 req->length, 64, req->data);
+			 "set_property_dict value_null=%u data0=%*phN\n",
+			 req->value_null, 64, req->data);
+		dcpep_log_osdict(dcp, "set_property_dict", req->data,
+				 sizeof(req->data));
 	}
 
 	return true;
@@ -193,8 +363,9 @@ static u8 dcpep_cb_set_property_int(struct apple_dcp *dcp,
 	if (iomfb_trace_ipc) {
 		dcpep_log_key(dcp, "set_property_int", req->key,
 			      sizeof(req->key));
-		dev_info(dcp->dev, "set_property_int value=0x%llx flags=0x%x\n",
-			 req->value, req->flags);
+		dev_info(dcp->dev,
+			 "set_property_int value=0x%llx value_null=%u padding=%*phN\n",
+			 req->value, req->value_null, 3, req->padding);
 	}
 
 	return true;
@@ -206,8 +377,8 @@ static u8 dcpep_cb_set_property_bool(struct apple_dcp *dcp,
 	if (iomfb_trace_ipc) {
 		dcpep_log_key(dcp, "set_property_bool", req->key,
 			      sizeof(req->key));
-		dev_info(dcp->dev, "set_property_bool value=%u\n",
-			 req->value);
+		dev_info(dcp->dev, "set_property_bool value=%u value_null=%u\n",
+			 req->value, req->value_null);
 	}
 
 	return true;
