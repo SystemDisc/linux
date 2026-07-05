@@ -151,6 +151,11 @@ module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,
 		 "Return this stride from D101 get_display_default_stride instead of zero");
 
+ulong iomfb_clock_frequency_override;
+module_param(iomfb_clock_frequency_override, ulong, 0644);
+MODULE_PARM_DESC(iomfb_clock_frequency_override,
+		 "Return this D408 getClockFrequency value instead of the Linux clock rate");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {

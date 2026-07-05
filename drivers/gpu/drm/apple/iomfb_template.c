@@ -729,9 +729,25 @@ dcpep_cb_map_physical(struct apple_dcp *dcp, struct dcp_map_physical_req *req)
 	};
 }
 
-static u64 dcpep_cb_get_frequency(struct apple_dcp *dcp)
+struct dcp_get_frequency_req {
+	char obj[4];
+	u32 arg;
+} __packed;
+
+static u64 dcpep_cb_get_frequency(struct apple_dcp *dcp,
+				  struct dcp_get_frequency_req *req)
 {
-	return clk_get_rate(dcp->clk);
+	u64 clk_rate = clk_get_rate(dcp->clk);
+	u64 rate = iomfb_clock_frequency_override ?: clk_rate;
+
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "getClockFrequency obj='%c%c%c%c' arg=%u clk_rate=%llu override=%lu ret=%llu\n",
+			 req->obj[0], req->obj[1], req->obj[2], req->obj[3],
+			 req->arg, clk_rate, iomfb_clock_frequency_override,
+			 rate);
+
+	return rate;
 }
 
 static struct DCP_FW_NAME(dcp_map_reg_resp) dcpep_cb_map_reg(struct apple_dcp *dcp,
@@ -1697,7 +1713,8 @@ static bool __maybe_unused trampoline_set_frame_sync_props(struct apple_dcp *dcp
 
 	return true;
 }
-TRAMPOLINE_OUT(trampoline_get_frequency, dcpep_cb_get_frequency, u64);
+TRAMPOLINE_INOUT(trampoline_get_frequency, dcpep_cb_get_frequency,
+		 struct dcp_get_frequency_req, u64);
 TRAMPOLINE_OUT(trampoline_get_time, dcpep_cb_get_time, u64);
 TRAMPOLINE_IN(trampoline_hotplug, dcpep_cb_hotplug, u64);
 TRAMPOLINE_IN(trampoline_swap_complete_intent_gated,
