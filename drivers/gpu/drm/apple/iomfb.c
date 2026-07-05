@@ -439,12 +439,43 @@ static void dcpep_handle_ack(struct apple_dcp *dcp, enum dcp_context_id context,
 {
 	struct dcp_packet_header *header = data;
 	struct dcp_channel *ch = dcp_get_channel(dcp, context);
+	void *out;
 	void *cookie;
 	dcp_callback_t cb;
+	u32 expected_len;
+	u32 out_dump;
 
 	if (!ch) {
 		dev_warn(dcp->dev, "ignoring ack on context %X\n", context);
 		return;
+	}
+
+	if (length < sizeof(*header)) {
+		dev_warn(dcp->dev, "ignoring short ack on context %u len=%u\n",
+			 context, length);
+		return;
+	}
+
+	expected_len = sizeof(*header) + header->in_len + header->out_len;
+	out = data + sizeof(*header) + header->in_len;
+
+	if (iomfb_trace_ipc) {
+		dev_info(dcp->dev,
+			 "IOMFB ack ctx=%u tag=%c%c%c%c in=%u out=%u len=%u\n",
+			 context, header->tag[3], header->tag[2],
+			 header->tag[1], header->tag[0], header->in_len,
+			 header->out_len, length);
+
+		if (expected_len > length)
+			dev_warn(dcp->dev,
+				 "ack %c%c%c%c size mismatch: expected=%u len=%u\n",
+				 header->tag[3], header->tag[2], header->tag[1],
+				 header->tag[0], expected_len, length);
+
+		out_dump = min_t(u32, header->out_len, 32);
+		if (expected_len <= length && out_dump)
+			dev_info(dcp->dev, "IOMFB ack output: %*ph\n",
+				 out_dump, out);
 	}
 
 	dcp_pop_depth(&ch->depth);
@@ -456,7 +487,7 @@ static void dcpep_handle_ack(struct apple_dcp *dcp, enum dcp_context_id context,
 	ch->cookies[ch->depth] = NULL;
 
 	if (cb)
-		cb(dcp, data + sizeof(*header) + header->in_len, cookie);
+		cb(dcp, out, cookie);
 }
 
 static void dcpep_got_msg(struct apple_dcp *dcp, u64 message)
