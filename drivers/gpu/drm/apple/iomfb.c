@@ -141,6 +141,11 @@ module_param(iomfb_skip_invalid_modeset, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_invalid_modeset,
 		 "Skip set_digital_out_mode while DCP hotplug has not reported a valid mode");
 
+bool iomfb_skip_modeset_mark_valid;
+module_param(iomfb_skip_modeset_mark_valid, bool, 0644);
+MODULE_PARM_DESC(iomfb_skip_modeset_mark_valid,
+		 "Diagnostic: skip set_digital_out_mode and mark the current DCP mode valid");
+
 bool iomfb_skip_flush_invalid_mode;
 module_param(iomfb_skip_flush_invalid_mode, bool, 0644);
 MODULE_PARM_DESC(iomfb_skip_flush_invalid_mode,

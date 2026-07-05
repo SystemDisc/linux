@@ -29,6 +29,7 @@ extern bool iomfb_vid_clock_factor_override_enable;
 extern uint iomfb_vid_clock_factor_override;
 extern bool iomfb_vid_clock_factor_success;
 extern bool iomfb_skip_invalid_modeset;
+extern bool iomfb_skip_modeset_mark_valid;
 extern bool iomfb_skip_flush_invalid_mode;
 extern uint iomfb_default_stride_override;
 extern ulong iomfb_clock_frequency_override;
