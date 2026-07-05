@@ -138,6 +138,15 @@ static u32 dcpep_cb_d123(struct apple_dcp *dcp)
 	return iomfb_d123_force_true ? 1 : 0;
 }
 
+static u8 dcpep_cb_is_dfb_allocated(struct apple_dcp *dcp)
+{
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev, "D596 isDFBAllocated returning %u\n",
+			 iomfb_dfb_allocated ? 1 : 0);
+
+	return iomfb_dfb_allocated ? 1 : 0;
+}
+
 static void dcpep_log_key(const struct apple_dcp *dcp, const char *name,
 			  const char *key, size_t key_size)
 {
@@ -1392,6 +1401,7 @@ TRAMPOLINE_OUT(trampoline_false, dcpep_cb_false, u8);
 TRAMPOLINE_OUT(trampoline_zero, dcpep_cb_zero, u32);
 TRAMPOLINE_OUT(trampoline_d121, dcpep_cb_d121, u32);
 TRAMPOLINE_OUT(trampoline_d123, dcpep_cb_d123, u32);
+TRAMPOLINE_OUT(trampoline_is_dfb_allocated, dcpep_cb_is_dfb_allocated, u8);
 TRAMPOLINE_INOUT(trampoline_set_number_property, dcpep_cb_set_number_property,
 		 struct dcp_set_number_property_req, u8);
 TRAMPOLINE_INOUT(trampoline_set_property_dict, dcpep_cb_set_property_dict,

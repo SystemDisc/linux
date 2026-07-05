@@ -101,7 +101,7 @@ static const iomfb_cb_handler cb_handlers[IOMFB_MAX_CB] = {
 	[592] = trampoline_abort_swap_ap_gated,
 	[593] = trampoline_enable_backlight_message_ap_gated,
 	[594] = trampoline_nop, /* IOMobileFramebufferAP::setSystemConsoleMode */
-	[596] = trampoline_false, /* IOMobileFramebufferAP::isDFBAllocated */
+	[596] = trampoline_is_dfb_allocated,
 	[597] = trampoline_false, /* IOMobileFramebufferAP::preserveContents */
 	[598] = trampoline_nop, /* find_swap_function_gated */
 };

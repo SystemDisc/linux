@@ -96,6 +96,11 @@ module_param(iomfb_update_notify_clients, bool, 0644);
 MODULE_PARM_DESC(iomfb_update_notify_clients,
 		 "Send update_notify_clients_dcp during DCP startup probing");
 
+bool iomfb_dfb_allocated;
+module_param(iomfb_dfb_allocated, bool, 0644);
+MODULE_PARM_DESC(iomfb_dfb_allocated,
+		 "Return true from IOMobileFramebufferAP::isDFBAllocated for firmware probing");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
