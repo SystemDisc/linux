@@ -1141,9 +1141,9 @@ dcpep_cb_set_frame_sync_props(struct apple_dcp *dcp,
 {
 	if (iomfb_trace_ipc)
 		dev_info(dcp->dev,
-			 "set_frame_sync_props in=%u out=%u data0=%*ph\n",
+			 "set_frame_sync_props in=%u out=%u data=%*ph\n",
 			 dcp->callback_in_len, dcp->callback_out_len,
-			 min_t(u32, dcp->callback_in_len, 32), req);
+			 min_t(u32, dcp->callback_in_len, 64), req);
 
 	return (struct dcp_set_frame_sync_props_resp){};
 }
@@ -1655,9 +1655,31 @@ TRAMPOLINE_INOUT(trampoline_allocate_bandwidth, dcpep_cb_allocate_bandwidth,
 	       struct dcp_allocate_bandwidth_req, struct dcp_allocate_bandwidth_resp);
 TRAMPOLINE_OUT(trampoline_rt_bandwidth, dcpep_cb_rt_bandwidth,
 	       struct dcp_rt_bandwidth);
-TRAMPOLINE_INOUT(trampoline_set_frame_sync_props, dcpep_cb_set_frame_sync_props,
-	       struct dcp_set_frame_sync_props_req,
-	       struct dcp_set_frame_sync_props_resp);
+static bool __maybe_unused trampoline_set_frame_sync_props(struct apple_dcp *dcp,
+							   int tag, void *out,
+							   void *in)
+{
+	struct dcp_set_frame_sync_props_resp resp;
+	u32 copy_len;
+
+	trace_iomfb_callback(dcp, tag, "dcpep_cb_set_frame_sync_props");
+	resp = dcpep_cb_set_frame_sync_props(dcp, in);
+
+	if (iomfb_frame_sync_copy_input) {
+		copy_len = min(dcp->callback_in_len, dcp->callback_out_len);
+		if (copy_len)
+			memcpy(out, in, copy_len);
+		if (iomfb_trace_ipc)
+			dev_info(dcp->dev,
+				 "set_frame_sync_props copied %u input byte(s) to output\n",
+				 copy_len);
+	} else {
+		memcpy(out, &resp, min_t(u32, sizeof(resp),
+					 dcp->callback_out_len));
+	}
+
+	return true;
+}
 TRAMPOLINE_OUT(trampoline_get_frequency, dcpep_cb_get_frequency, u64);
 TRAMPOLINE_OUT(trampoline_get_time, dcpep_cb_get_time, u64);
 TRAMPOLINE_IN(trampoline_hotplug, dcpep_cb_hotplug, u64);

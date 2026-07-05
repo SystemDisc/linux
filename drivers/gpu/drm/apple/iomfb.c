@@ -106,6 +106,11 @@ module_param(iomfb_update_notify_clients, bool, 0644);
 MODULE_PARM_DESC(iomfb_update_notify_clients,
 		 "Send update_notify_clients_dcp during DCP startup probing");
 
+bool iomfb_frame_sync_copy_input;
+module_param(iomfb_frame_sync_copy_input, bool, 0644);
+MODULE_PARM_DESC(iomfb_frame_sync_copy_input,
+		 "Copy D006 frame-sync inout input back to output for firmware probing");
+
 bool iomfb_dfb_allocated;
 module_param(iomfb_dfb_allocated, bool, 0644);
 MODULE_PARM_DESC(iomfb_dfb_allocated,
