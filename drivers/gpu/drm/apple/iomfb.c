@@ -31,6 +31,11 @@
 #include "parser.h"
 #include "trace.h"
 
+static uint iomfb_shmem_flag = IOMFB_SHMEM_FLAG_VALUE;
+module_param(iomfb_shmem_flag, uint, 0644);
+MODULE_PARM_DESC(iomfb_shmem_flag,
+		 "IOMFB SET_SHMEM flag nibble; default matches supported DCP firmware");
+
 static int dcp_tx_offset(enum dcp_context_id id)
 {
 	switch (id) {
@@ -64,7 +69,7 @@ static int dcp_channel_offset(enum dcp_context_id id)
 static inline u64 dcpep_set_shmem(u64 dart_va)
 {
 	return FIELD_PREP(IOMFB_MESSAGE_TYPE, IOMFB_MESSAGE_TYPE_SET_SHMEM) |
-	       FIELD_PREP(IOMFB_SHMEM_FLAG, IOMFB_SHMEM_FLAG_VALUE) |
+	       FIELD_PREP(IOMFB_SHMEM_FLAG, iomfb_shmem_flag & 0xf) |
 	       FIELD_PREP(IOMFB_SHMEM_DVA, dart_va);
 }
 
@@ -533,6 +538,8 @@ int iomfb_start_rtkit(struct apple_dcp *dcp)
 	dcp->shmem = dma_alloc_coherent(dcp->dev, DCP_SHMEM_SIZE, &shmem_iova,
 					GFP_KERNEL);
 
+	dev_info(dcp->dev, "IOMFB SET_SHMEM iova=%pad flag=0x%x\n",
+		 &shmem_iova, iomfb_shmem_flag & 0xf);
 	dcp_send_message(dcp, IOMFB_ENDPOINT, dcpep_set_shmem(shmem_iova));
 
 	return 0;
