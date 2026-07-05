@@ -97,9 +97,16 @@ static enum drm_connector_status
 apple_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct apple_connector *apple_connector = to_apple_connector(connector);
+	enum drm_connector_status status;
 
-	return apple_connector->connected ? connector_status_connected :
-						  connector_status_disconnected;
+	status = apple_connector->connected ? connector_status_connected :
+					      connector_status_disconnected;
+
+	dev_info(connector->dev->dev,
+		 "connector_detect force=%d connected=%d status=%d\n",
+		 force, apple_connector->connected, status);
+
+	return status;
 }
 
 static void apple_connector_oob_hotplug(struct drm_connector *connector,
@@ -121,11 +128,19 @@ static void apple_connector_oob_hotplug(struct drm_connector *connector,
 static void apple_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_atomic_state *state)
 {
+	struct apple_crtc *apple_crtc = to_apple_crtc(crtc);
 	struct drm_crtc_state *crtc_state;
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
+	dev_info(&apple_crtc->dcp->dev,
+		 "crtc_atomic_enable active=%d active_changed=%d mode_changed=%d "
+		 "planes_changed=%d color_mgmt_changed=%d " DRM_MODE_FMT "\n",
+		 crtc_state->active, crtc_state->active_changed,
+		 crtc_state->mode_changed, crtc_state->planes_changed,
+		 crtc_state->color_mgmt_changed,
+		 DRM_MODE_ARG(&crtc_state->mode));
+
 	if (crtc_state->active_changed && crtc_state->active) {
-		struct apple_crtc *apple_crtc = to_apple_crtc(crtc);
 		dcp_poweron(apple_crtc->dcp);
 		/* Force the CTM to be set on first swap */
 		crtc_state->color_mgmt_changed = true;
@@ -138,11 +153,17 @@ static void apple_crtc_atomic_enable(struct drm_crtc *crtc,
 static void apple_crtc_atomic_disable(struct drm_crtc *crtc,
 				      struct drm_atomic_state *state)
 {
+	struct apple_crtc *apple_crtc = to_apple_crtc(crtc);
 	struct drm_crtc_state *crtc_state;
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
+	dev_info(&apple_crtc->dcp->dev,
+		 "crtc_atomic_disable active=%d active_changed=%d mode_changed=%d "
+		 DRM_MODE_FMT "\n",
+		 crtc_state->active, crtc_state->active_changed,
+		 crtc_state->mode_changed, DRM_MODE_ARG(&crtc_state->mode));
+
 	if (crtc_state->active_changed && !crtc_state->active) {
-		struct apple_crtc *apple_crtc = to_apple_crtc(crtc);
 		dcp_poweroff(apple_crtc->dcp);
 	}
 
@@ -159,7 +180,17 @@ static void apple_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_atomic_state *state)
 {
 	struct apple_crtc *apple_crtc = to_apple_crtc(crtc);
+	struct drm_crtc_state *crtc_state;
 	unsigned long flags;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	if (crtc_state)
+		dev_info(&apple_crtc->dcp->dev,
+			 "crtc_atomic_begin active=%d mode_changed=%d "
+			 "planes_changed=%d event=%p " DRM_MODE_FMT "\n",
+			 crtc_state->active, crtc_state->mode_changed,
+			 crtc_state->planes_changed, crtc->state->event,
+			 DRM_MODE_ARG(&crtc_state->mode));
 
 	if (crtc->state->event) {
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);

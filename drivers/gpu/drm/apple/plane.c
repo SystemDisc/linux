@@ -28,12 +28,30 @@ static int apple_plane_atomic_check(struct drm_plane *plane,
 
 	new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 
-	if (!new_plane_state->crtc)
+	if (!new_plane_state->crtc) {
+		dev_info(state->dev->dev,
+			 "plane_atomic_check plane=%u disabled fb=%u\n",
+			 plane->base.id,
+			 new_plane_state->fb ? new_plane_state->fb->base.id : 0);
 		return 0;
+	}
 
 	crtc_state = drm_atomic_get_crtc_state(state, new_plane_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
+
+	dev_info(state->dev->dev,
+		 "plane_atomic_check plane=%u crtc=%u fb=%u visible=%d "
+		 "src=%dx%d dst=%dx%d fmt=%08x pitch=%u\n",
+		 plane->base.id, new_plane_state->crtc->base.id,
+		 new_plane_state->fb ? new_plane_state->fb->base.id : 0,
+		 new_plane_state->visible,
+		 drm_rect_width(&new_plane_state->src) >> 16,
+		 drm_rect_height(&new_plane_state->src) >> 16,
+		 drm_rect_width(&new_plane_state->dst),
+		 drm_rect_height(&new_plane_state->dst),
+		 new_plane_state->fb ? new_plane_state->fb->format->format : 0,
+		 new_plane_state->fb ? new_plane_state->fb->pitches[0] : 0);
 
 	/*
 	 * DCP limits downscaling to 2x and upscaling to 4x. Attempting to
@@ -219,6 +237,9 @@ static void apple_plane_atomic_update(struct drm_plane *plane,
 	new_state = to_apple_plane_state(base);
 
 	if (!base->fb) {
+		dev_info(plane->dev->dev,
+			 "plane_atomic_update plane=%u disabling surface\n",
+			 plane->base.id);
 		memset(&new_state->surf, 0, sizeof(new_state->surf));
 		return;
 	}
@@ -290,6 +311,16 @@ static void apple_plane_atomic_update(struct drm_plane *plane,
 	obj = drm_fb_dma_get_gem_obj(base->fb, 0);
 	if (obj)
 		new_state->iova = obj->dma_addr + base->fb->offsets[0];
+
+	dev_info(plane->dev->dev,
+		 "plane_atomic_update plane=%u fb=%u fmt=%08x size=%ux%u "
+		 "pitch=%u iova=%pad src=%dx%d dst=%dx%d visible=%d\n",
+		 plane->base.id, fb->base.id, fmt->format, fb->width,
+		 fb->height, fb->pitches[0], &new_state->iova,
+		 drm_rect_width(&base->src) >> 16,
+		 drm_rect_height(&base->src) >> 16,
+		 drm_rect_width(&base->dst), drm_rect_height(&base->dst),
+		 base->visible);
 }
 
 static const struct drm_plane_helper_funcs apple_primary_plane_helper_funcs = {

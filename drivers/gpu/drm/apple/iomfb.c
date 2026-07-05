@@ -559,7 +559,13 @@ int dcp_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 	int i;
 
+	dev_info(dcp->dev, "get_modes connected=%d nr_modes=%d dcpav=%d edid=%d\n",
+		 apple_connector->connected, dcp->nr_modes,
+		 dcp->dcpavserv.enabled, !!apple_connector->drm_edid);
+
 	for (i = 0; i < dcp->nr_modes; ++i) {
+		dev_info(dcp->dev, "get_modes add[%d] " DRM_MODE_FMT "\n",
+			 i, DRM_MODE_ARG(&dcp->modes[i].mode));
 		mode = drm_mode_duplicate(dev, &dcp->modes[i].mode);
 
 		if (!mode) {
@@ -609,8 +615,13 @@ enum drm_mode_status dcp_mode_valid(struct drm_connector *connector,
 	struct apple_connector *apple_connector = to_apple_connector(connector);
 	struct platform_device *pdev = apple_connector->dcp;
 	struct apple_dcp *dcp = platform_get_drvdata(pdev);
+	enum drm_mode_status status;
 
-	return lookup_mode(dcp, mode) ? MODE_OK : MODE_BAD;
+	status = lookup_mode(dcp, mode) ? MODE_OK : MODE_BAD;
+	dev_info(dcp->dev, "mode_valid status=%d " DRM_MODE_FMT "\n",
+		 status, DRM_MODE_ARG(mode));
+
+	return status;
 }
 
 int dcp_crtc_atomic_modeset(struct drm_crtc *crtc,
@@ -627,6 +638,11 @@ int dcp_crtc_atomic_modeset(struct drm_crtc *crtc,
 		return 0;
 
 	modeset = drm_atomic_crtc_needs_modeset(crtc_state) || !dcp->valid_mode;
+	dev_info(dcp->dev,
+		 "dcp_crtc_atomic_modeset entry modeset=%d dcp_valid=%d active=%d "
+		 "mode_changed=%d " DRM_MODE_FMT "\n",
+		 modeset, dcp->valid_mode, crtc_state->active,
+		 crtc_state->mode_changed, DRM_MODE_ARG(&crtc_state->mode));
 
 	if (!modeset)
 		return 0;
@@ -668,6 +684,7 @@ void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct platform_device *pdev = to_apple_crtc(crtc)->dcp;
 	struct apple_dcp *dcp = platform_get_drvdata(pdev);
+	struct drm_crtc_state *crtc_state;
 
 	if (iomfb_skip_flush_invalid_mode && !dcp->valid_mode) {
 		dev_info(dcp->dev,
@@ -675,6 +692,16 @@ void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 		schedule_work(&dcp->vblank_wq);
 		return;
 	}
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	if (crtc_state)
+		dev_info(dcp->dev,
+			 "dcp_flush entry active=%d mode_changed=%d planes_changed=%d "
+			 "color_mgmt_changed=%d dcp_valid=%d " DRM_MODE_FMT "\n",
+			 crtc_state->active, crtc_state->mode_changed,
+			 crtc_state->planes_changed,
+			 crtc_state->color_mgmt_changed, dcp->valid_mode,
+			 DRM_MODE_ARG(&crtc_state->mode));
 
 	if (dcp_channel_busy(&dcp->ch_cmd))
 	{

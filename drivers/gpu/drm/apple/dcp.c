@@ -366,6 +366,14 @@ int dcp_crtc_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
 	needs_modeset = drm_atomic_crtc_needs_modeset(crtc_state) || !dcp->valid_mode;
+	dev_info(dcp->dev,
+		 "crtc_atomic_check active=%d enable=%d mode_changed=%d "
+		 "planes_changed=%d needs_modeset=%d dcp_valid=%d connected=%d "
+		 DRM_MODE_FMT "\n",
+		 crtc_state->active, crtc_state->enable,
+		 crtc_state->mode_changed, crtc_state->planes_changed,
+		 needs_modeset, dcp->valid_mode, dcp->connector->connected,
+		 DRM_MODE_ARG(&crtc_state->mode));
 	if (!needs_modeset && !dcp->connector->connected) {
 		dev_err(dcp->dev, "crtc_atomic_check: disconnected but no modeset\n");
 		return -EINVAL;
@@ -378,6 +386,8 @@ int dcp_crtc_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 
 		plane_count += 1;
 	}
+
+	dev_info(dcp->dev, "crtc_atomic_check plane_count=%d\n", plane_count);
 
 	if (plane_count > DCP_MAX_PLANES) {
 		dev_err(dcp->dev, "crtc_atomic_check: Blend supports only 2 layers!\n");

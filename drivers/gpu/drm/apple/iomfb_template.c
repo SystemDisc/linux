@@ -1997,6 +1997,23 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
+	if (crtc_state)
+		dev_info(dcp->dev,
+			 "iomfb_flush entry active=%d mode_changed=%d planes_changed=%d "
+			 "color_mgmt_changed=%d dcp_valid=%d surfaces_cleared=%d "
+			 DRM_MODE_FMT "\n",
+			 crtc_state->active, crtc_state->mode_changed,
+			 crtc_state->planes_changed,
+			 crtc_state->color_mgmt_changed,
+			 dcp->valid_mode, dcp->surfaces_cleared,
+			 DRM_MODE_ARG(&crtc_state->mode));
+	else
+		dev_info(dcp->dev,
+			 "iomfb_flush entry without new crtc_state dcp_valid=%d "
+			 "surfaces_cleared=%d " DRM_MODE_FMT "\n",
+			 dcp->valid_mode, dcp->surfaces_cleared,
+			 DRM_MODE_ARG(&crtc->state->mode));
+
 	/* Reset all surfaces to defaults */
 	memset(req, 0, sizeof(*req));
 	for (l = 0; l < SWAP_SURFACES; l++)
@@ -2067,6 +2084,17 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		}
 		req->surf_null[l] = false;
 		has_surface = 1;
+
+		dev_info(dcp->dev,
+			 "iomfb_flush plane=%u layer=%d fb=%u visible=%d "
+			 "src=%ux%u dst=%ux%u iova=%pad\n",
+			 plane->base.id, l, new_state->fb->base.id,
+			 new_state->visible,
+			 drm_rect_width(&new_state->src) >> 16,
+			 drm_rect_height(&new_state->src) >> 16,
+			 drm_rect_width(&new_state->dst),
+			 drm_rect_height(&new_state->dst),
+			 &apple_state->iova);
 
 		req->swap.src_rect[l] = apple_state->src_rect;
 		req->swap.dst_rect[l] = apple_state->dst_rect;
