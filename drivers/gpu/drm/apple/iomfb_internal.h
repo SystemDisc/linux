@@ -35,6 +35,7 @@ extern bool iomfb_skip_set_matrix;
 extern bool iomfb_swap_start_client_flag2;
 extern unsigned long long iomfb_swap_start_client_handle;
 extern uint iomfb_poll_after_swap_start_ms;
+extern uint iomfb_poll_after_set_matrix_ms;
 extern int iomfb_force_swap_layer;
 extern uint iomfb_force_surface_id;
 extern uint iomfb_force_surface_flags;

@@ -171,6 +171,11 @@ module_param(iomfb_poll_after_swap_start_ms, uint, 0644);
 MODULE_PARM_DESC(iomfb_poll_after_swap_start_ms,
 		 "Diagnostic: poll RTKit after IOMFB swap_start for this many milliseconds");
 
+uint iomfb_poll_after_set_matrix_ms;
+module_param(iomfb_poll_after_set_matrix_ms, uint, 0644);
+MODULE_PARM_DESC(iomfb_poll_after_set_matrix_ms,
+		 "Diagnostic: poll RTKit after IOMFB set_matrix for this many milliseconds");
+
 int iomfb_force_swap_layer = -1;
 module_param(iomfb_force_swap_layer, int, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_layer,

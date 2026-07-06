@@ -1837,6 +1837,31 @@ static void dcp_swap_started(struct apple_dcp *dcp, void *data, void *cookie)
 	dcp_swap_submit(dcp, false, &DCP_FW_UNION(dcp->swap), dcp_swapped, NULL);
 }
 
+static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
+				  u32 timeout_ms)
+{
+	u32 remaining = timeout_ms;
+	int total = 0;
+
+	while (remaining) {
+		u32 interval = min_t(u32, remaining, 5);
+		int polls = apple_rtkit_poll(dcp->rtk);
+
+		if (polls) {
+			total += polls;
+			dev_info(dcp->dev,
+				 "%s: polled %d RTKit message(s)\n",
+				 name, polls);
+		}
+
+		msleep(interval);
+		remaining -= interval;
+	}
+
+	dev_info(dcp->dev, "%s: poll window complete, total=%d\n",
+		 name, total);
+}
+
 /* Helpers to modeset and swap, used to flush */
 static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 {
@@ -1857,28 +1882,9 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 	if (dcp->connector && dcp->connector->connected) {
 		dcp_swap_start(dcp, false, &start_req, dcp_swap_started, NULL);
 
-		if (iomfb_poll_after_swap_start_ms) {
-			u32 remaining = iomfb_poll_after_swap_start_ms;
-			int total = 0;
-
-			while (remaining) {
-				int polls = apple_rtkit_poll(dcp->rtk);
-
-				if (polls) {
-					total += polls;
-					dev_info(dcp->dev,
-						 "swap_start: polled %d RTKit message(s) after A407\n",
-						 polls);
-				}
-
-				msleep(min_t(u32, remaining, 5));
-				remaining -= min_t(u32, remaining, 5);
-			}
-
-			dev_info(dcp->dev,
-				 "swap_start: post-A407 poll window complete, total=%d\n",
-				 total);
-		}
+		if (iomfb_poll_after_swap_start_ms)
+			poll_after_iomfb_call(dcp, "swap_start",
+					      iomfb_poll_after_swap_start_ms);
 	} else {
 		dcp_drm_crtc_vblank(dcp->crtc);
 	}
@@ -2269,6 +2275,9 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		}
 
 		iomfb_set_matrix(dcp, false, &mat, do_swap, NULL);
+		if (iomfb_poll_after_set_matrix_ms)
+			poll_after_iomfb_call(dcp, "set_matrix",
+					      iomfb_poll_after_set_matrix_ms);
 	} else
 		do_swap(dcp, NULL, NULL);
 }
