@@ -1854,10 +1854,34 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 			 start_req.client.handle, start_req.client.flag1,
 			 start_req.client.flag2);
 
-	if (dcp->connector && dcp->connector->connected)
+	if (dcp->connector && dcp->connector->connected) {
 		dcp_swap_start(dcp, false, &start_req, dcp_swap_started, NULL);
-	else
+
+		if (iomfb_poll_after_swap_start_ms) {
+			u32 remaining = iomfb_poll_after_swap_start_ms;
+			int total = 0;
+
+			while (remaining) {
+				int polls = apple_rtkit_poll(dcp->rtk);
+
+				if (polls) {
+					total += polls;
+					dev_info(dcp->dev,
+						 "swap_start: polled %d RTKit message(s) after A407\n",
+						 polls);
+				}
+
+				msleep(min_t(u32, remaining, 5));
+				remaining -= min_t(u32, remaining, 5);
+			}
+
+			dev_info(dcp->dev,
+				 "swap_start: post-A407 poll window complete, total=%d\n",
+				 total);
+		}
+	} else {
 		dcp_drm_crtc_vblank(dcp->crtc);
+	}
 }
 
 static void complete_set_digital_out_mode(struct apple_dcp *dcp, void *data,

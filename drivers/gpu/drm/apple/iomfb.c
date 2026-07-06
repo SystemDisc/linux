@@ -166,6 +166,11 @@ module_param(iomfb_swap_start_client_handle, ullong, 0644);
 MODULE_PARM_DESC(iomfb_swap_start_client_handle,
 		 "Diagnostic: set IOUserClient handle in IOMFB swap_start requests");
 
+uint iomfb_poll_after_swap_start_ms;
+module_param(iomfb_poll_after_swap_start_ms, uint, 0644);
+MODULE_PARM_DESC(iomfb_poll_after_swap_start_ms,
+		 "Diagnostic: poll RTKit after IOMFB swap_start for this many milliseconds");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,
