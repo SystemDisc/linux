@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/soc/apple/rtkit.h>
 
 #include <drm/drm_edid.h>
@@ -45,6 +46,11 @@ bool iomfb_trace_ipc;
 module_param(iomfb_trace_ipc, bool, 0644);
 MODULE_PARM_DESC(iomfb_trace_ipc,
 		 "Trace IOMFB method and callback tags in dmesg");
+
+static bool iomfb_fw14_method_map;
+module_param(iomfb_fw14_method_map, bool, 0644);
+MODULE_PARM_DESC(iomfb_fw14_method_map,
+		 "Use traced firmware-14 IOMFB method tags for T8122 probing");
 
 bool iomfb_d121_force_true;
 module_param(iomfb_d121_force_true, bool, 0644);
@@ -363,6 +369,33 @@ static u8 dcp_pop_depth(u8 *depth)
 	return --(*depth);
 }
 
+static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
+{
+	if (!iomfb_fw14_method_map)
+		return NULL;
+
+	if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
+		return "A438";
+	if (!strcmp(call->name, "dcpep_create_default_fb"))
+		return "A442";
+	if (!strcmp(call->name, "dcpep_enable_disable_video_power_savings"))
+		return "A446";
+	if (!strcmp(call->name, "dcpep_first_client_open"))
+		return "A453";
+	if (!strcmp(call->name, "iomfbep_last_client_close"))
+		return "A454";
+	if (!strcmp(call->name, "dcpep_set_display_refresh_properties"))
+		return "A459";
+	if (!strcmp(call->name, "dcpep_flush_supports_power"))
+		return "A462";
+	if (!strcmp(call->name, "iomfbep_abort_swaps_dcp"))
+		return "A463";
+	if (!strcmp(call->name, "dcpep_set_power_state"))
+		return "A467";
+
+	return NULL;
+}
+
 /* Call a DCP function given by a tag */
 void dcp_push(struct apple_dcp *dcp, bool oob, const struct dcp_method_entry *call,
 		     u32 in_len, u32 out_len, void *data, dcp_callback_t cb,
@@ -370,16 +403,23 @@ void dcp_push(struct apple_dcp *dcp, bool oob, const struct dcp_method_entry *ca
 {
 	enum dcp_context_id context = dcp_call_context(dcp, oob);
 	struct dcp_channel *ch = dcp_get_channel(dcp, context);
+	const char *fw14_tag = iomfb_fw14_method_tag(call);
+	char tag[4];
+
+	if (fw14_tag)
+		memcpy(tag, fw14_tag, sizeof(tag));
+	else
+		memcpy(tag, call->tag, sizeof(tag));
 
 	struct dcp_packet_header header = {
 		.in_len = in_len,
 		.out_len = out_len,
 
 		/* Tag is reversed due to endianness of the fourcc */
-		.tag[0] = call->tag[3],
-		.tag[1] = call->tag[2],
-		.tag[2] = call->tag[1],
-		.tag[3] = call->tag[0],
+		.tag[0] = tag[3],
+		.tag[1] = tag[2],
+		.tag[2] = tag[1],
+		.tag[3] = tag[0],
 	};
 
 	u8 depth = dcp_push_depth(&ch->depth);
@@ -397,16 +437,16 @@ void dcp_push(struct apple_dcp *dcp, bool oob, const struct dcp_method_entry *ca
 	trace_iomfb_push(dcp, call, context, offset, depth);
 	if (iomfb_trace_ipc)
 		dev_info(dcp->dev,
-			 "IOMFB call ctx=%u tag=%c%c%c%c name=%s in=%u out=%u off=0x%x depth=%u\n",
-			 context, call->tag[0], call->tag[1], call->tag[2],
-			 call->tag[3], call->name, in_len, out_len, offset,
-			 depth);
+			 "IOMFB call ctx=%u tag=%c%c%c%c name=%s in=%u out=%u off=0x%x depth=%u%s\n",
+			 context, tag[0], tag[1], tag[2], tag[3],
+			 call->name, in_len, out_len, offset, depth,
+			 fw14_tag ? " fw14-map" : "");
 
 	ch->callbacks[depth] = cb;
 	ch->cookies[depth] = cookie;
 	ch->output[depth] = out + sizeof(header) + in_len;
 	ch->names[depth] = call->name;
-	memcpy(ch->tags[depth], call->tag, sizeof(ch->tags[depth]));
+	memcpy(ch->tags[depth], tag, sizeof(ch->tags[depth]));
 	ch->in_len[depth] = in_len;
 	ch->out_len[depth] = out_len;
 	ch->end[depth] = offset + ALIGN(data_len, DCP_PACKET_ALIGNMENT);
