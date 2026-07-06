@@ -176,6 +176,11 @@ module_param(iomfb_poll_after_swap_submit_ms, uint, 0644);
 MODULE_PARM_DESC(iomfb_poll_after_swap_submit_ms,
 		 "Diagnostic: poll RTKit after IOMFB swap_submit for this many milliseconds");
 
+bool iomfb_fake_pageflip_on_swap_submit_ack;
+module_param(iomfb_fake_pageflip_on_swap_submit_ack, bool, 0644);
+MODULE_PARM_DESC(iomfb_fake_pageflip_on_swap_submit_ack,
+		 "Diagnostic: synthesize a DRM pageflip event after a successful IOMFB swap_submit ACK");
+
 uint iomfb_poll_after_set_matrix_ms;
 module_param(iomfb_poll_after_set_matrix_ms, uint, 0644);
 MODULE_PARM_DESC(iomfb_poll_after_set_matrix_ms,

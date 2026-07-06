@@ -1816,6 +1816,11 @@ static void dcp_swapped(struct apple_dcp *dcp, void *data, void *cookie)
 		return;
 	}
 	dcp->swap_start = ktime_get();
+	if (iomfb_fake_pageflip_on_swap_submit_ack) {
+		dev_warn(dcp->dev,
+			 "diagnostic: faking DRM pageflip on successful swap_submit ACK\n");
+		dcp_drm_crtc_page_flip(dcp, dcp->swap_start);
+	}
 
 	while (!list_empty(&dcp->swapped_out_fbs)) {
 		struct dcp_fb_reference *entry;
