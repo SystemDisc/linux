@@ -33,6 +33,7 @@ extern bool iomfb_skip_modeset_mark_valid;
 extern bool iomfb_skip_flush_invalid_mode;
 extern bool iomfb_skip_set_matrix;
 extern bool iomfb_swap_start_client_flag2;
+extern unsigned long long iomfb_swap_start_client_handle;
 extern uint iomfb_default_stride_override;
 extern ulong iomfb_clock_frequency_override;
 
