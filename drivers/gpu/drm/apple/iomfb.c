@@ -57,6 +57,12 @@ module_param(iomfb_fw14_m1n1_method_map, bool, 0644);
 MODULE_PARM_DESC(iomfb_fw14_m1n1_method_map,
 		 "Use m1n1 dcp-clusterfuck IOMFB method tags for T8122 probing");
 
+static char iomfb_first_client_open_tag[5];
+module_param_string(iomfb_first_client_open_tag, iomfb_first_client_open_tag,
+		    sizeof(iomfb_first_client_open_tag), 0644);
+MODULE_PARM_DESC(iomfb_first_client_open_tag,
+		 "Override dcpep_first_client_open tag, e.g. A456, for firmware probing");
+
 bool iomfb_d121_force_true;
 module_param(iomfb_d121_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d121_force_true,
@@ -381,8 +387,23 @@ static u8 dcp_pop_depth(u8 *depth)
 
 static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 {
-	if (!iomfb_fw14_method_map && !iomfb_fw14_m1n1_method_map)
-		return NULL;
+	bool first_client = !strcmp(call->name, "dcpep_first_client_open");
+	size_t override_len = strnlen(iomfb_first_client_open_tag,
+				      sizeof(iomfb_first_client_open_tag));
+
+	if (first_client && override_len) {
+		if (override_len == 4 && iomfb_first_client_open_tag[0] == 'A' &&
+		    iomfb_first_client_open_tag[1] >= '0' &&
+		    iomfb_first_client_open_tag[1] <= '9' &&
+		    iomfb_first_client_open_tag[2] >= '0' &&
+		    iomfb_first_client_open_tag[2] <= '9' &&
+		    iomfb_first_client_open_tag[3] >= '0' &&
+		    iomfb_first_client_open_tag[3] <= '9')
+			return iomfb_first_client_open_tag;
+
+		pr_warn_once("appledrm: ignoring invalid iomfb_first_client_open_tag=%s\n",
+			     iomfb_first_client_open_tag);
+	}
 
 	if (iomfb_fw14_m1n1_method_map) {
 		if (!strcmp(call->name, "dcpep_set_create_dfb"))
@@ -393,7 +414,7 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 			return "A443";
 		if (!strcmp(call->name, "dcpep_enable_disable_video_power_savings"))
 			return "A447";
-		if (!strcmp(call->name, "dcpep_first_client_open"))
+		if (first_client)
 			return "A454";
 		if (!strcmp(call->name, "iomfbep_last_client_close"))
 			return "A455";
@@ -409,13 +430,16 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 		return NULL;
 	}
 
+	if (!iomfb_fw14_method_map)
+		return NULL;
+
 	if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
 		return "A438";
 	if (!strcmp(call->name, "dcpep_create_default_fb"))
 		return "A442";
 	if (!strcmp(call->name, "dcpep_enable_disable_video_power_savings"))
 		return "A446";
-	if (!strcmp(call->name, "dcpep_first_client_open"))
+	if (first_client)
 		return "A453";
 	if (!strcmp(call->name, "iomfbep_last_client_close"))
 		return "A454";
