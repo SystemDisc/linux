@@ -171,6 +171,21 @@ module_param(iomfb_poll_after_swap_start_ms, uint, 0644);
 MODULE_PARM_DESC(iomfb_poll_after_swap_start_ms,
 		 "Diagnostic: poll RTKit after IOMFB swap_start for this many milliseconds");
 
+int iomfb_force_swap_layer = -1;
+module_param(iomfb_force_swap_layer, int, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_layer,
+		 "Diagnostic: force visible framebuffer into this IOMFB swap surface slot");
+
+uint iomfb_force_surface_id;
+module_param(iomfb_force_surface_id, uint, 0644);
+MODULE_PARM_DESC(iomfb_force_surface_id,
+		 "Diagnostic: force this IOMFB surface_id for visible framebuffer surfaces");
+
+uint iomfb_force_surface_flags;
+module_param(iomfb_force_surface_flags, uint, 0644);
+MODULE_PARM_DESC(iomfb_force_surface_flags,
+		 "Diagnostic: force this IOMFB surf_flags value for visible framebuffer surfaces");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,

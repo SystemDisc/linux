@@ -2104,6 +2104,18 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		 */
 
 		l = MAX_BLEND_SURFACES - new_state->normalized_zpos;
+		if (iomfb_force_swap_layer >= 0) {
+			if (iomfb_force_swap_layer < SWAP_SURFACES) {
+				dev_info(dcp->dev,
+					 "forcing swap surface slot from %d to %d for probe\n",
+					 l, iomfb_force_swap_layer);
+				l = iomfb_force_swap_layer;
+			} else {
+				dev_warn(dcp->dev,
+					 "ignoring invalid forced swap surface slot %d\n",
+					 iomfb_force_swap_layer);
+			}
+		}
 
 		WARN_ON(l > MAX_BLEND_SURFACES);
 
@@ -2155,6 +2167,25 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 
 		req->surf_iova[l] = apple_state->iova;
 		req->surf[l].base = apple_state->surf;
+		if (iomfb_force_surface_id) {
+			req->swap.surf_ids[l] = iomfb_force_surface_id;
+			req->surf[l].base.surface_id = iomfb_force_surface_id;
+		}
+		if (iomfb_force_surface_id || iomfb_force_surface_flags)
+			req->swap.surf_flags[l] = iomfb_force_surface_flags;
+
+		dev_info(dcp->dev,
+			 "iomfb_flush surface payload layer=%d "
+			 "surf_id=%u surf_flags=0x%x "
+			 "surface_id=%u flags1=0x%llx flags2=0x%llx "
+			 "format=0x%x stride=%u pix_size=%u colorspace=%u "
+			 "surf_null=%u iova=%pad\n",
+			 l, req->swap.surf_ids[l], req->swap.surf_flags[l],
+			 req->surf[l].base.surface_id, req->swap.flags1,
+			 req->swap.flags2, req->surf[l].base.format,
+			 req->surf[l].base.stride, req->surf[l].base.pix_size,
+			 req->surf[l].base.colorspace, req->surf_null[l],
+			 &req->surf_iova[l]);
 
 		/* Use sRGB colorspace only for internal panels. External
 		 * displays are expected to have EDID and user space can use
@@ -2199,6 +2230,19 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		req->swap.bl_power = 0x40;
 		dcp->brightness.update = false;
 	}
+
+	dev_info(dcp->dev,
+		 "iomfb_flush swap payload final flags1=0x%llx flags2=0x%llx "
+		 "swap_enabled=0x%x swap_completed=0x%x clear=%u "
+		 "surf_ids=%u,%u,%u,%u surf_flags=0x%x,0x%x,0x%x,0x%x "
+		 "surf_null=%u,%u,%u,%u\n",
+		 req->swap.flags1, req->swap.flags2, req->swap.swap_enabled,
+		 req->swap.swap_completed, req->clear, req->swap.surf_ids[0],
+		 req->swap.surf_ids[1], req->swap.surf_ids[2],
+		 req->swap.surf_ids[3], req->swap.surf_flags[0],
+		 req->swap.surf_flags[1], req->swap.surf_flags[2],
+		 req->swap.surf_flags[3], req->surf_null[0],
+		 req->surf_null[1], req->surf_null[2], req->surf_null[3]);
 
 	if (crtc_state->color_mgmt_changed && iomfb_skip_set_matrix) {
 		dev_info(dcp->dev,
