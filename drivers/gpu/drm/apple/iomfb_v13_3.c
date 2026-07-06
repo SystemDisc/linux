@@ -29,7 +29,9 @@ static const struct dcp_method_entry dcp_methods[dcpep_num_methods] = {
 	IOMFB_METHOD("A463", dcpep_set_display_refresh_properties),
 	IOMFB_METHOD("A466", dcpep_flush_supports_power),
 	IOMFB_METHOD("A467", iomfbep_abort_swaps_dcp),
+	IOMFB_METHOD("A470", dcpep_update_dfb),
 	IOMFB_METHOD("A472", dcpep_set_power_state),
+	IOMFB_METHOD("A473", dcpep_is_keep_on_screen),
 };
 
 #define DCP_FW v13_3

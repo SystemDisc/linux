@@ -29,6 +29,7 @@
 #include "dcp-internal.h"
 #include "iomfb.h"
 #include "iomfb_internal.h"
+#include "iomfb_plane.h"
 #include "parser.h"
 #include "trace.h"
 
@@ -132,6 +133,26 @@ bool iomfb_update_notify_clients;
 module_param(iomfb_update_notify_clients, bool, 0644);
 MODULE_PARM_DESC(iomfb_update_notify_clients,
 		 "Send update_notify_clients_dcp during DCP startup probing");
+
+bool iomfb_update_dfb_before_first_client;
+module_param(iomfb_update_dfb_before_first_client, bool, 0644);
+MODULE_PARM_DESC(iomfb_update_dfb_before_first_client,
+		 "Send update_dfb with the boot framebuffer surface before first_client_open");
+
+uint iomfb_update_dfb_surface_id = 3;
+module_param(iomfb_update_dfb_surface_id, uint, 0644);
+MODULE_PARM_DESC(iomfb_update_dfb_surface_id,
+		 "Surface ID used for the boot framebuffer update_dfb probe");
+
+uint iomfb_update_dfb_colorspace = DCP_COLORSPACE_NATIVE;
+module_param(iomfb_update_dfb_colorspace, uint, 0644);
+MODULE_PARM_DESC(iomfb_update_dfb_colorspace,
+		 "DCP colorspace used for the boot framebuffer update_dfb probe");
+
+bool iomfb_call_is_keep_on_screen;
+module_param(iomfb_call_is_keep_on_screen, bool, 0644);
+MODULE_PARM_DESC(iomfb_call_is_keep_on_screen,
+		 "Call isKeepOnScreen after first_client_open during firmware probing");
 
 bool iomfb_frame_sync_copy_input;
 module_param(iomfb_frame_sync_copy_input, bool, 0644);
@@ -444,8 +465,12 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 			return "A463";
 		if (!strcmp(call->name, "iomfbep_abort_swaps_dcp"))
 			return "A464";
+		if (!strcmp(call->name, "dcpep_update_dfb"))
+			return "A467";
 		if (!strcmp(call->name, "dcpep_set_power_state"))
 			return "A468";
+		if (!strcmp(call->name, "dcpep_is_keep_on_screen"))
+			return "A469";
 
 		return NULL;
 	}
@@ -471,8 +496,12 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 			return "A466";
 		if (!strcmp(call->name, "iomfbep_abort_swaps_dcp"))
 			return "A467";
+		if (!strcmp(call->name, "dcpep_update_dfb"))
+			return "A470";
 		if (!strcmp(call->name, "dcpep_set_power_state"))
 			return "A472";
+		if (!strcmp(call->name, "dcpep_is_keep_on_screen"))
+			return "A473";
 
 		return NULL;
 	}
@@ -496,8 +525,12 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 		return "A462";
 	if (!strcmp(call->name, "iomfbep_abort_swaps_dcp"))
 		return "A463";
+	if (!strcmp(call->name, "dcpep_update_dfb"))
+		return "A466";
 	if (!strcmp(call->name, "dcpep_set_power_state"))
 		return "A467";
+	if (!strcmp(call->name, "dcpep_is_keep_on_screen"))
+		return "A468";
 
 	return NULL;
 }

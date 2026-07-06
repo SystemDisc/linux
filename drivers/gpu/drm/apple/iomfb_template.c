@@ -89,6 +89,9 @@ DCP_THUNK_OUT(dcp_start_signal, dcpep_start_signal, u32);
 DCP_THUNK_VOID(dcp_setup_video_limits, dcpep_setup_video_limits);
 DCP_THUNK_VOID(dcp_set_create_dfb, dcpep_set_create_dfb);
 DCP_THUNK_VOID(dcp_first_client_open, dcpep_first_client_open);
+DCP_THUNK_INOUT(dcp_update_dfb, dcpep_update_dfb,
+		struct DCP_FW_NAME(dcp_surface), u32);
+DCP_THUNK_OUT(dcp_is_keep_on_screen, dcpep_is_keep_on_screen, u32);
 
 static void dcp_set_parameter_dcp(struct apple_dcp *dcp, bool oob,
 				  struct dcp_set_parameter_dcp *data,
@@ -2566,6 +2569,100 @@ static void init_3(struct apple_dcp *dcp, void *out, void *cookie)
 	dcp_is_main_display(dcp, false, res_is_main_display, NULL);
 }
 
+static u32 dcp_boot_fb_format(struct apple_dcp *dcp)
+{
+	if (!strcmp(dcp->boot_fb.format, "x2r10g10b10") ||
+	    !strcmp(dcp->boot_fb.format, "a2r10g10b10"))
+		return DCP_FORMAT_L10R;
+
+	if (!strcmp(dcp->boot_fb.format, "x8r8g8b8") ||
+	    !strcmp(dcp->boot_fb.format, "a8r8g8b8"))
+		return DCP_FORMAT_BGRA;
+
+	dev_warn(dcp->dev,
+		 "unknown boot framebuffer format %s for update_dfb; using BGRA\n",
+		 dcp->boot_fb.format);
+	return DCP_FORMAT_BGRA;
+}
+
+static void dcp_build_boot_dfb_surface(struct apple_dcp *dcp,
+				       struct DCP_FW_NAME(dcp_surface) *surf)
+{
+	u32 height = dcp->boot_fb.visible_height + dcp->notch_height;
+
+	memset(surf, 0, sizeof(*surf));
+
+	surf->base.format = dcp_boot_fb_format(dcp);
+	surf->base.xfer_func = DCP_XFER_FUNC_SDR;
+	surf->base.colorspace = iomfb_update_dfb_colorspace;
+	surf->base.stride = dcp->boot_fb.stride;
+	surf->base.pix_size = 4;
+	surf->base.pel_w = 1;
+	surf->base.pel_h = 1;
+	surf->base.width = dcp->boot_fb.width;
+	surf->base.height = height;
+	surf->base.buf_size = height * dcp->boot_fb.stride;
+	surf->base.surface_id = iomfb_update_dfb_surface_id;
+	surf->base.has_comp = 1;
+	surf->base.has_planes = 1;
+
+	dev_info(dcp->dev,
+		 "update_dfb boot surface id=%u format=0x%x %ux%u stride=%u buf_size=0x%x colorspace=%u valid_bootfb=%u\n",
+		 surf->base.surface_id, surf->base.format, surf->base.width,
+		 surf->base.height, surf->base.stride, surf->base.buf_size,
+		 surf->base.colorspace, dcp->boot_fb.valid);
+}
+
+static void init_2(struct apple_dcp *dcp, void *out, void *cookie);
+
+static void init_after_update_dfb(struct apple_dcp *dcp, void *out, void *cookie)
+{
+	u32 ret = out ? *(u32 *)out : 0;
+
+	dev_info(dcp->dev, "update_dfb boot surface returned:0x%x\n", ret);
+	init_2(dcp, NULL, NULL);
+}
+
+static void init_maybe_update_dfb(struct apple_dcp *dcp, void *out, void *cookie)
+{
+	struct DCP_FW_NAME(dcp_surface) surf;
+
+	if (!iomfb_update_dfb_before_first_client) {
+		init_2(dcp, NULL, NULL);
+		return;
+	}
+
+	if (!dcp->boot_fb.valid) {
+		dev_warn(dcp->dev,
+			 "skipping update_dfb probe because boot framebuffer info is missing\n");
+		init_2(dcp, NULL, NULL);
+		return;
+	}
+
+	dcp_build_boot_dfb_surface(dcp, &surf);
+	dcp_update_dfb(dcp, false, &surf, init_after_update_dfb, NULL);
+}
+
+static void init_after_is_keep_on_screen(struct apple_dcp *dcp, void *out,
+					 void *cookie)
+{
+	u32 ret = out ? *(u32 *)out : 0;
+
+	dev_info(dcp->dev, "isKeepOnScreen returned:0x%x\n", ret);
+	init_3(dcp, NULL, NULL);
+}
+
+static void init_after_first_client_open(struct apple_dcp *dcp, void *out,
+					 void *cookie)
+{
+	if (!iomfb_call_is_keep_on_screen) {
+		init_3(dcp, NULL, NULL);
+		return;
+	}
+
+	dcp_is_keep_on_screen(dcp, false, init_after_is_keep_on_screen, NULL);
+}
+
 static void init_2(struct apple_dcp *dcp, void *out, void *cookie)
 {
 	if (iomfb_skip_first_client_open) {
@@ -2574,7 +2671,7 @@ static void init_2(struct apple_dcp *dcp, void *out, void *cookie)
 		return;
 	}
 
-	dcp_first_client_open(dcp, false, init_3, NULL);
+	dcp_first_client_open(dcp, false, init_after_first_client_open, NULL);
 }
 
 static void init_update_notify_clients(struct apple_dcp *dcp, void *out,
@@ -2586,7 +2683,8 @@ static void init_update_notify_clients(struct apple_dcp *dcp, void *out,
 
 	dev_info(dcp->dev,
 		 "sending update_notify_clients_dcp for firmware-14 probe\n");
-	dcp_update_notify_clients_dcp(dcp, false, &req, init_2, NULL);
+	dcp_update_notify_clients_dcp(dcp, false, &req, init_maybe_update_dfb,
+				      NULL);
 }
 
 static void init_1(struct apple_dcp *dcp, void *out, void *cookie)
@@ -2596,7 +2694,7 @@ static void init_1(struct apple_dcp *dcp, void *out, void *cookie)
 	dcp_enable_disable_video_power_savings(dcp, false, &val,
 					       iomfb_update_notify_clients ?
 						       init_update_notify_clients :
-						       init_2,
+						       init_maybe_update_dfb,
 					       NULL);
 }
 
