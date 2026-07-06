@@ -2347,6 +2347,25 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		if (dcp->notch_height > 0)
 			req->swap.dst_rect[l].y += dcp->notch_height;
 
+#if DCP_FW_VER >= DCP_FW_VERSION(13, 2, 0)
+			if (iomfb_set_active_regions) {
+				req->swap.active_region_enable[l] = 1;
+				req->swap.active_region[l].max_x =
+					req->swap.dst_rect[l].x + req->swap.dst_rect[l].w;
+				req->swap.active_region[l].max_y =
+					req->swap.dst_rect[l].y + req->swap.dst_rect[l].h;
+				req->swap.active_region[l].min_w = 0;
+				req->swap.active_region[l].max_w =
+					req->swap.dst_rect[l].w;
+				dev_info(dcp->dev,
+					 "active_region layer=%d enable=1 max=%ux%u min_w=%u max_w=%u\n",
+					 l, req->swap.active_region[l].max_x,
+					 req->swap.active_region[l].max_y,
+					 req->swap.active_region[l].min_w,
+					 req->swap.active_region[l].max_w);
+			}
+#endif
+
 		req->surf_iova[l] = apple_state->iova;
 		req->surf[l].base = apple_state->surf;
 		if (iomfb_force_surface_id) {

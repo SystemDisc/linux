@@ -294,6 +294,11 @@ module_param(iomfb_force_surface_plane_count, int, 0644);
 MODULE_PARM_DESC(iomfb_force_surface_plane_count,
 		 "Diagnostic: force IOMFB surface plane_cnt/plane_cnt2 when non-negative");
 
+bool iomfb_set_active_regions;
+module_param(iomfb_set_active_regions, bool, 0644);
+MODULE_PARM_DESC(iomfb_set_active_regions,
+		 "Diagnostic: populate V13.x IOMFB active region fields from the visible plane");
+
 uint iomfb_swap_state_mirror_offset;
 module_param(iomfb_swap_state_mirror_offset, uint, 0644);
 MODULE_PARM_DESC(iomfb_swap_state_mirror_offset,

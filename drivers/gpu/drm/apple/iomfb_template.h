@@ -42,7 +42,19 @@ struct DCP_FW_NAME(dcp_swap) {
 	u32 swap_completed;
 
 	u32 bg_color;
+#if DCP_FW_VER >= DCP_FW_VERSION(13, 2, 0)
+	u8 unk_110[0x30];
+	u32 active_region_enable[SWAP_SURFACES];
+	struct dcp_active_region {
+		u32 max_x;
+		u32 max_y;
+		u32 min_w;
+		u32 max_w;
+	} __packed active_region[SWAP_SURFACES];
+	u8 unk_190[0x138];
+#else
 	u8 unk_110[0x1b8];
+#endif
 	u32 unk_2c8;
 	u8 unk_2cc[0x14];
 	u32 unk_2e0;
