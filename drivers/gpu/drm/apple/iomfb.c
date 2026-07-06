@@ -186,6 +186,26 @@ module_param(iomfb_force_surface_flags, uint, 0644);
 MODULE_PARM_DESC(iomfb_force_surface_flags,
 		 "Diagnostic: force this IOMFB surf_flags value for visible framebuffer surfaces");
 
+ullong iomfb_force_swap_flags1;
+module_param(iomfb_force_swap_flags1, ullong, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_flags1,
+		 "Diagnostic: force this IOMFB swap flags1 value when nonzero");
+
+ullong iomfb_force_swap_flags2;
+module_param(iomfb_force_swap_flags2, ullong, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_flags2,
+		 "Diagnostic: force this IOMFB swap flags2 value when nonzero");
+
+uint iomfb_force_surface_pix_size;
+module_param(iomfb_force_surface_pix_size, uint, 0644);
+MODULE_PARM_DESC(iomfb_force_surface_pix_size,
+		 "Diagnostic: force this IOMFB surface pix_size value when nonzero");
+
+int iomfb_force_surface_colorspace = -1;
+module_param(iomfb_force_surface_colorspace, int, 0644);
+MODULE_PARM_DESC(iomfb_force_surface_colorspace,
+		 "Diagnostic: force this IOMFB surface colorspace value when non-negative");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,

@@ -2173,6 +2173,10 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		}
 		if (iomfb_force_surface_id || iomfb_force_surface_flags)
 			req->swap.surf_flags[l] = iomfb_force_surface_flags;
+		if (iomfb_force_surface_pix_size)
+			req->surf[l].base.pix_size = iomfb_force_surface_pix_size;
+		if (iomfb_force_surface_colorspace >= 0)
+			req->surf[l].base.colorspace = iomfb_force_surface_colorspace;
 
 		dev_info(dcp->dev,
 			 "iomfb_flush surface payload layer=%d "
@@ -2221,6 +2225,10 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 	}
 
 	/* These fields should be set together */
+	if (iomfb_force_swap_flags1)
+		req->swap.flags1 = iomfb_force_swap_flags1;
+	if (iomfb_force_swap_flags2)
+		req->swap.flags2 = iomfb_force_swap_flags2;
 	req->swap.swap_completed = req->swap.swap_enabled;
 
 	/* update brightness if changed */

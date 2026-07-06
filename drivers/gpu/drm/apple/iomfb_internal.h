@@ -38,6 +38,10 @@ extern uint iomfb_poll_after_swap_start_ms;
 extern int iomfb_force_swap_layer;
 extern uint iomfb_force_surface_id;
 extern uint iomfb_force_surface_flags;
+extern unsigned long long iomfb_force_swap_flags1;
+extern unsigned long long iomfb_force_swap_flags2;
+extern uint iomfb_force_surface_pix_size;
+extern int iomfb_force_surface_colorspace;
 extern uint iomfb_default_stride_override;
 extern ulong iomfb_clock_frequency_override;
 
