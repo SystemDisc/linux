@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/soc/apple/rtkit.h>
+#include <linux/string.h>
 #include <linux/unaligned.h>
 
 #include <drm/drm_fb_dma_helper.h>
@@ -2316,18 +2317,40 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 			req->surf[l].base.pix_size = iomfb_force_surface_pix_size;
 		if (iomfb_force_surface_colorspace >= 0)
 			req->surf[l].base.colorspace = iomfb_force_surface_colorspace;
+		if (iomfb_force_surface_plane_count >= 0) {
+			u32 plane_count = min_t(u32, iomfb_force_surface_plane_count,
+						DCP_SURF_MAX_PLANES);
+
+			req->surf[l].base.plane_cnt = plane_count;
+			req->surf[l].base.plane_cnt2 = plane_count;
+			if (!plane_count) {
+				memset(req->surf[l].base.comp_types, 0,
+				       sizeof(req->surf[l].base.comp_types));
+				memset(req->surf[l].base.planes, 0,
+				       sizeof(req->surf[l].base.planes));
+				memset(req->surf[l].base.compression_info, 0,
+				       sizeof(req->surf[l].base.compression_info));
+			}
+		}
 
 		dev_info(dcp->dev,
 			 "iomfb_flush surface payload layer=%d "
 			 "surf_id=%u surf_flags=0x%x "
 			 "surface_id=%u flags1=0x%llx flags2=0x%llx "
 			 "format=0x%x stride=%u pix_size=%u colorspace=%u "
+			 "plane_cnt=%u plane_cnt2=%u has_comp=0x%llx "
+			 "has_planes=0x%llx buf_size=%u "
 			 "surf_null=%u iova=%pad\n",
 			 l, req->swap.surf_ids[l], req->swap.surf_flags[l],
 			 req->surf[l].base.surface_id, req->swap.flags1,
 			 req->swap.flags2, req->surf[l].base.format,
 			 req->surf[l].base.stride, req->surf[l].base.pix_size,
-			 req->surf[l].base.colorspace, req->surf_null[l],
+			 req->surf[l].base.colorspace,
+			 req->surf[l].base.plane_cnt,
+			 req->surf[l].base.plane_cnt2,
+			 req->surf[l].base.has_comp,
+			 req->surf[l].base.has_planes,
+			 req->surf[l].base.buf_size, req->surf_null[l],
 			 &req->surf_iova[l]);
 
 		/* Use sRGB colorspace only for internal panels. External

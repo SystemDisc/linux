@@ -242,6 +242,11 @@ module_param(iomfb_force_surface_colorspace, int, 0644);
 MODULE_PARM_DESC(iomfb_force_surface_colorspace,
 		 "Diagnostic: force this IOMFB surface colorspace value when non-negative");
 
+int iomfb_force_surface_plane_count = -1;
+module_param(iomfb_force_surface_plane_count, int, 0644);
+MODULE_PARM_DESC(iomfb_force_surface_plane_count,
+		 "Diagnostic: force IOMFB surface plane_cnt/plane_cnt2 when non-negative");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,
