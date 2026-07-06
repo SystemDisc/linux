@@ -2398,6 +2398,31 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		req->swap.bg_color = 0xFF000000;
 	}
 	req->swap.swap_completed = req->swap.swap_enabled;
+	if (iomfb_swap_state_mirror_offset) {
+		u32 off = iomfb_swap_state_mirror_offset;
+		u32 native = offsetof(struct DCP_FW_NAME(dcp_swap),
+				      swap_enabled);
+
+		if (off + sizeof(req->swap.swap_enabled) +
+			  sizeof(req->swap.swap_completed) <=
+		    sizeof(req->swap)) {
+			u8 *swap_bytes = (u8 *)&req->swap;
+
+			put_unaligned_le32(req->swap.swap_enabled,
+					   swap_bytes + off);
+			put_unaligned_le32(req->swap.swap_completed,
+					   swap_bytes + off +
+					   sizeof(req->swap.swap_enabled));
+			dev_info(dcp->dev,
+				 "mirrored swap state native=0x%x mirror=0x%x enabled=0x%x completed=0x%x\n",
+				 native, off, req->swap.swap_enabled,
+				 req->swap.swap_completed);
+		} else {
+			dev_warn(dcp->dev,
+				 "invalid swap state mirror offset 0x%x for swap size 0x%zx\n",
+				 off, sizeof(req->swap));
+		}
+	}
 
 	/* update brightness if changed */
 	if (dcp_has_panel(dcp) && dcp->brightness.update) {

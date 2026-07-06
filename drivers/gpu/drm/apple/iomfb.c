@@ -253,6 +253,11 @@ module_param(iomfb_force_surface_plane_count, int, 0644);
 MODULE_PARM_DESC(iomfb_force_surface_plane_count,
 		 "Diagnostic: force IOMFB surface plane_cnt/plane_cnt2 when non-negative");
 
+uint iomfb_swap_state_mirror_offset;
+module_param(iomfb_swap_state_mirror_offset, uint, 0644);
+MODULE_PARM_DESC(iomfb_swap_state_mirror_offset,
+		 "Diagnostic: mirror swap_enabled/swap_completed to this byte offset in the swap record");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,

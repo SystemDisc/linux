@@ -48,6 +48,7 @@ extern unsigned long long iomfb_force_swap_flags2;
 extern uint iomfb_force_surface_pix_size;
 extern int iomfb_force_surface_colorspace;
 extern int iomfb_force_surface_plane_count;
+extern uint iomfb_swap_state_mirror_offset;
 extern uint iomfb_default_stride_override;
 extern ulong iomfb_clock_frequency_override;
 
