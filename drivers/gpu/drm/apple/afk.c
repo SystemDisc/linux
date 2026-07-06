@@ -610,6 +610,16 @@ static void afk_recv_handle(struct apple_dcp_afkep *ep, u32 channel, u32 type,
 		return afk_recv_handle_std_service(
 			ep, channel, type, ehdr, eshdr, payload, payload_size);
 
+	if (type == EPIC_TYPE_NOTIFY && eshdr->category == EPIC_CAT_NOTIFY &&
+	    service->ops->notify) {
+		int ret;
+
+		ret = service->ops->notify(service, subtype, le16_to_cpu(eshdr->tag),
+					   payload, payload_size);
+		if (!ret)
+			return;
+	}
+
 	dev_err(ep->dcp->dev, "AFK[ep:%02x]: channel %d received unhandled message "
 		"(type %x subtype %x)\n", ep->endpoint, channel, type, subtype);
 	print_hex_dump(KERN_INFO, "AFK: ", DUMP_PREFIX_NONE, 16, 1, payload,
@@ -929,18 +939,28 @@ int afk_send_command(struct apple_epic_service *service, u8 type,
 	struct apple_dcp_afkep *ep = service->ep;
 	DECLARE_COMPLETION_ONSTACK(completion);
 
-	rxbuf = dma_alloc_coherent(ep->dcp->dev, output_len, &rxbuf_dma,
-				   GFP_KERNEL);
-	if (!rxbuf)
-		return -ENOMEM;
-	txbuf = dma_alloc_coherent(ep->dcp->dev, payload_len, &txbuf_dma,
-				   GFP_KERNEL);
-	if (!txbuf) {
-		ret = -ENOMEM;
-		goto err_free_rxbuf;
+	if (output_len) {
+		rxbuf = dma_alloc_coherent(ep->dcp->dev, output_len, &rxbuf_dma,
+					   GFP_KERNEL);
+		if (!rxbuf)
+			return -ENOMEM;
+	} else {
+		rxbuf = NULL;
+		rxbuf_dma = 0;
 	}
 
-	memcpy(txbuf, payload, payload_len);
+	if (payload_len) {
+		txbuf = dma_alloc_coherent(ep->dcp->dev, payload_len, &txbuf_dma,
+					   GFP_KERNEL);
+		if (!txbuf) {
+			ret = -ENOMEM;
+			goto err_free_rxbuf;
+		}
+		memcpy(txbuf, payload, payload_len);
+	} else {
+		txbuf = NULL;
+		txbuf_dma = 0;
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.retcode = cpu_to_le32(0);
@@ -1008,11 +1028,13 @@ int afk_send_command(struct apple_epic_service *service, u8 type,
 err_free_cmd:
 	spin_lock_irqsave(&service->lock, flags);
 	bitmap_release_region(service->cmd_map, idx, 0);
-err_unlock:
+	err_unlock:
 	spin_unlock_irqrestore(&service->lock, flags);
-	dma_free_coherent(ep->dcp->dev, payload_len, txbuf, txbuf_dma);
+	if (payload_len)
+		dma_free_coherent(ep->dcp->dev, payload_len, txbuf, txbuf_dma);
 err_free_rxbuf:
-	dma_free_coherent(ep->dcp->dev, output_len, rxbuf, rxbuf_dma);
+	if (output_len)
+		dma_free_coherent(ep->dcp->dev, output_len, rxbuf, rxbuf_dma);
 	return ret;
 }
 

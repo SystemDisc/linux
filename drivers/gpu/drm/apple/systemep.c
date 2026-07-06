@@ -2,6 +2,7 @@
 /* Copyright 2022 Sven Peter <sven@svenpeter.dev> */
 
 #include <linux/completion.h>
+#include <linux/soc/apple/rtkit.h>
 
 #include "afk.h"
 #include "dcp.h"
@@ -15,6 +16,11 @@ static bool systemep_async_start;
 module_param(systemep_async_start, bool, 0644);
 MODULE_PARM_DESC(systemep_async_start,
 		 "Start DCP system endpoint without waiting before IOMFB");
+
+static unsigned int systemep_verbose_timeout_ms = 5000;
+module_param(systemep_verbose_timeout_ms, uint, 0644);
+MODULE_PARM_DESC(systemep_verbose_timeout_ms,
+		 "Timeout in ms for the DCP system endpoint verbose-log property");
 
 /*
  * Serialized setProperty("gAFKConfigLogMask", 0xffff) IPC call which
@@ -37,13 +43,64 @@ static void system_log_work(struct work_struct *work_)
 {
 	struct systemep_work *work =
 		container_of(work_, struct systemep_work, work);
+	struct apple_dcp *dcp = work->service->ep->dcp;
+	u32 retcode = 0;
+	int ret;
 
-	afk_send_command(work->service, SYSTEM_SET_PROPERTY,
-			 setprop_gAFKConfigLogMask_ffff,
-			 sizeof(setprop_gAFKConfigLogMask_ffff), NULL,
-			 sizeof(setprop_gAFKConfigLogMask_ffff), NULL);
-	complete(&work->service->ep->dcp->systemep_done);
+	ret = afk_send_command(work->service, SYSTEM_SET_PROPERTY,
+			       setprop_gAFKConfigLogMask_ffff,
+			       sizeof(setprop_gAFKConfigLogMask_ffff), NULL, 0,
+			       &retcode);
+	if (ret)
+		dev_warn(dcp->dev,
+			 "systemep: verbose log setProperty failed: ret=%d retcode=0x%x\n",
+			 ret, retcode);
+	else
+		dev_info(dcp->dev,
+			 "systemep: verbose log setProperty completed retcode=0x%x\n",
+			 retcode);
+
+	complete(&dcp->systemep_done);
 	kfree(work);
+}
+
+static int system_notify(struct apple_epic_service *service, enum epic_subtype type,
+			 u16 tag, const void *data, size_t data_size)
+{
+	struct apple_dcp *dcp = service->ep->dcp;
+	void *reply;
+	u32 retcode = 0;
+	int ret;
+
+	if (type != SYSTEM_SET_PROPERTY)
+		return -EOPNOTSUPP;
+
+	if (data_size >= sizeof(retcode))
+		memcpy(&retcode, data, sizeof(retcode));
+
+	dev_info(dcp->dev,
+		 "systemep: setProperty notify type=0x%x tag=0x%x len=%zu retcode=0x%x\n",
+		 type, tag, data_size, retcode);
+
+	reply = kmemdup(data, data_size, GFP_KERNEL);
+	if (!reply)
+		return -ENOMEM;
+
+	/*
+	 * m1n1's generic EPIC notify ACK path marks byte 0x50 as successful
+	 * when the payload is large enough. Preserve that behavior for newer
+	 * firmware while also accepting shorter firmware-14 payloads.
+	 */
+	if (data_size >= 0x54) {
+		u32 ok = 1;
+
+		memcpy(reply + 0x50, &ok, sizeof(ok));
+	}
+
+	ret = afk_send_epic(service->ep, service->channel, tag, EPIC_TYPE_NOTIFY_ACK,
+			    EPIC_CAT_REPLY, type, reply, data_size);
+	kfree(reply);
+	return ret;
 }
 
 static void system_init(struct apple_epic_service *service, const char *name,
@@ -108,10 +165,11 @@ static int powerlog_report(struct apple_epic_service *service, enum epic_subtype
 }
 
 static const struct apple_epic_service_ops systemep_ops[] = {
-	{
-		.name = "system",
-		.init = system_init,
-	},
+		{
+			.name = "system",
+			.init = system_init,
+			.notify = system_notify,
+		},
 	{
 		.name = "powerlog-service",
 		.init = powerlog_init,
@@ -122,6 +180,7 @@ static const struct apple_epic_service_ops systemep_ops[] = {
 
 int systemep_init(struct apple_dcp *dcp)
 {
+	unsigned long left;
 	int ret;
 
 	init_completion(&dcp->systemep_done);
@@ -142,8 +201,30 @@ int systemep_init(struct apple_dcp *dcp)
 	 * Timeouts aren't really fatal here: in the worst case we just weren't
 	 * able to enable additional debug prints inside DCP
 	 */
-	if (!wait_for_completion_timeout(&dcp->systemep_done,
-					 msecs_to_jiffies(MSEC_PER_SEC)))
+	left = msecs_to_jiffies(systemep_verbose_timeout_ms ?: MSEC_PER_SEC);
+	while (left > 0) {
+		unsigned long slice = min_t(unsigned long, left, msecs_to_jiffies(25));
+		long waited;
+		int polls;
+
+		waited = wait_for_completion_timeout(&dcp->systemep_done, slice);
+		if (waited > 0)
+			return 0;
+
+		polls = apple_rtkit_poll(dcp->rtk);
+		if (polls)
+			dev_info(dcp->dev,
+				 "systemep: polled %d RTKit message(s) while waiting for verbose setup\n",
+				 polls);
+		if (dcp->systemep && dcp->systemep->wq)
+			flush_workqueue(dcp->systemep->wq);
+		if (completion_done(&dcp->systemep_done))
+			return 0;
+
+		left -= slice;
+	}
+
+	if (!completion_done(&dcp->systemep_done))
 		dev_err(dcp->dev, "systemep: couldn't enable verbose logs\n");
 
 	return 0;

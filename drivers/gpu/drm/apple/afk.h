@@ -66,6 +66,8 @@ struct apple_epic_service_ops {
 	int (*call)(struct apple_epic_service *service, u32 idx,
 		    const void *data, size_t data_size, void *reply,
 		    size_t reply_size);
+	int (*notify)(struct apple_epic_service *service, enum epic_subtype type,
+		      u16 tag, const void *data, size_t data_size);
 	int (*report)(struct apple_epic_service *service, enum epic_subtype type,
 		      const void *data, size_t data_size);
 	void (*teardown)(struct apple_epic_service *service);
