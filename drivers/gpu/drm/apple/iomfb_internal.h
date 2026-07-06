@@ -34,6 +34,7 @@ extern bool iomfb_skip_modeset_mark_valid;
 extern bool iomfb_skip_flush_invalid_mode;
 extern bool iomfb_skip_set_matrix;
 extern bool iomfb_swap_start_client_flag2;
+extern uint iomfb_swap_start_client_unk;
 extern unsigned long long iomfb_swap_start_client_handle;
 extern uint iomfb_poll_after_swap_start_ms;
 extern uint iomfb_poll_after_swap_submit_ms;

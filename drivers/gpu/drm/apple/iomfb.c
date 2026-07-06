@@ -188,6 +188,11 @@ module_param(iomfb_swap_start_client_flag2, bool, 0644);
 MODULE_PARM_DESC(iomfb_swap_start_client_flag2,
 		 "Diagnostic: set IOUserClient flag2 in IOMFB swap_start requests");
 
+uint iomfb_swap_start_client_unk;
+module_param(iomfb_swap_start_client_unk, uint, 0644);
+MODULE_PARM_DESC(iomfb_swap_start_client_unk,
+		 "Diagnostic: set IOUserClient unk field in IOMFB swap_start requests");
+
 ullong iomfb_swap_start_client_handle;
 module_param(iomfb_swap_start_client_handle, ullong, 0644);
 MODULE_PARM_DESC(iomfb_swap_start_client_handle,
@@ -688,8 +693,17 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 
 	dcp->callback_in_len = hdr->in_len;
 	dcp->callback_out_len = hdr->out_len;
-	if (dcp->cb_handlers[tag](dcp, tag, out, in))
+	if (dcp->cb_handlers[tag](dcp, tag, out, in)) {
+		if (iomfb_trace_ipc && hdr->out_len) {
+			u32 out_dump = min_t(u32, hdr->out_len, 32);
+
+			dev_info(dev,
+				 "IOMFB callback output ctx=%u tag=%c%c%c%c bytes=%*ph\n",
+				 context, hdr->tag[3], hdr->tag[2],
+				 hdr->tag[1], hdr->tag[0], out_dump, out);
+		}
 		dcp_ack(dcp, context);
+	}
 	dcp->callback_in_len = 0;
 	dcp->callback_out_len = 0;
 }

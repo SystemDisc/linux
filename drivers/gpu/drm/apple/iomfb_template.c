@@ -1980,9 +1980,10 @@ static void dcp_swap_started(struct apple_dcp *dcp, void *data, void *cookie)
 
 	DCP_FW_UNION(dcp->swap).swap.swap_id = resp->swap_id;
 
-	dev_info(dcp->dev, "swap_start ack swap_id=%u ret=%u client=0x%llx flag1=%u flag2=%u\n",
+	dev_info(dcp->dev,
+		 "swap_start ack swap_id=%u ret=%u client=0x%llx unk=0x%x flag1=%u flag2=%u\n",
 		 resp->swap_id, resp->ret, resp->client.handle,
-		 resp->client.flag1, resp->client.flag2);
+		 resp->client.unk, resp->client.flag1, resp->client.flag2);
 
 	if (resp->ret) {
 		dev_err(dcp->dev, "swap_start failed! status %u\n", resp->ret);
@@ -2035,15 +2036,18 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 	struct swap_matrix_cookie *swap_cookie = cookie;
 
 	start_req.client.handle = iomfb_swap_start_client_handle;
+	start_req.client.unk = iomfb_swap_start_client_unk;
 
 	if (iomfb_swap_start_client_flag2) {
 		start_req.client.flag2 = 1;
 	}
 
-	if (iomfb_swap_start_client_handle || iomfb_swap_start_client_flag2)
+	if (iomfb_swap_start_client_handle || iomfb_swap_start_client_unk ||
+	    iomfb_swap_start_client_flag2)
 		dev_info(dcp->dev,
-			 "swap_start client probe: handle=0x%llx flag1=%u flag2=%u\n",
-			 start_req.client.handle, start_req.client.flag1,
+			 "swap_start client probe: handle=0x%llx unk=0x%x flag1=%u flag2=%u\n",
+			 start_req.client.handle, start_req.client.unk,
+			 start_req.client.flag1,
 			 start_req.client.flag2);
 
 	if (dcp->connector && dcp->connector->connected) {
