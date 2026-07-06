@@ -398,6 +398,63 @@ static void dcpep_cb_swap_complete(struct apple_dcp *dcp,
 	}
 }
 
+static bool __maybe_unused
+trampoline_swap_complete_head_of_line(struct apple_dcp *dcp, int tag, void *out,
+				      void *in)
+{
+	u8 *buf = in;
+	u32 dump_len = min_t(u32, dcp->callback_in_len, 48);
+	u32 swap_id = 0;
+	ktime_t now = ktime_get();
+
+	trace_iomfb_callback(dcp, tag, "dcpep_cb_swap_complete_head_of_line");
+
+	if (dcp->callback_in_len >= sizeof(swap_id))
+		swap_id = get_unaligned_le32(buf);
+
+	dev_info(dcp->dev,
+		 "D581 swap_complete_head_of_line in=%u out=%u swap_id=%u raw=%*phN\n",
+		 dcp->callback_in_len, dcp->callback_out_len, swap_id, dump_len,
+		 buf);
+
+	if (swap_id) {
+		trace_iomfb_swap_complete(dcp, swap_id);
+		dcp->last_swap_id = swap_id;
+	}
+
+	dcp_drm_crtc_page_flip(dcp, now);
+	return true;
+}
+
+static bool __maybe_unused
+trampoline_batched_swap_complete_ap_gated(struct apple_dcp *dcp, int tag,
+					  void *out, void *in)
+{
+	u8 *buf = in;
+	u32 dump_len = min_t(u32, dcp->callback_in_len, 64);
+	u32 count = 0;
+	ktime_t now = ktime_get();
+
+	trace_iomfb_callback(dcp, tag,
+			     "dcpep_cb_batched_swap_complete_ap_gated");
+
+	/*
+	 * Firmware passes pointer-rich arguments here, so avoid pretending we
+	 * know the full layout. The callback itself is still a swap completion
+	 * notification and should release any pending DRM page-flip event.
+	 */
+	if (dcp->callback_in_len >= 12)
+		count = get_unaligned_le32(buf + 8);
+
+	dev_info(dcp->dev,
+		 "D590 batched_swap_complete_ap_gated in=%u out=%u count=%u raw=%*phN\n",
+		 dcp->callback_in_len, dcp->callback_out_len, count, dump_len,
+		 buf);
+
+	dcp_drm_crtc_page_flip(dcp, now);
+	return true;
+}
+
 /* special */
 static void complete_vi_set_temperature_hint(struct apple_dcp *dcp, void *out, void *cookie)
 {
@@ -1655,8 +1712,18 @@ static void
 dcpep_cb_swap_complete_intent_gated(struct apple_dcp *dcp,
 				    struct dcp_swap_complete_intent_gated *info)
 {
+	ktime_t now = ktime_get();
+
 	trace_iomfb_swap_complete_intent_gated(dcp, info->swap_id,
 		info->width, info->height);
+
+	dev_info(dcp->dev,
+		 "D591 swap_complete_intent_gated swap_id=%u unkBool=%u unkInt=0x%x size=%ux%u\n",
+		 info->swap_id, info->unkBool, info->unkInt, info->width,
+		 info->height);
+
+	dcp->last_swap_id = info->swap_id;
+	dcp_drm_crtc_page_flip(dcp, now);
 }
 
 static void
