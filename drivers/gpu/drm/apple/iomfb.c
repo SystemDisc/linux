@@ -134,6 +134,11 @@ module_param(iomfb_update_notify_clients, bool, 0644);
 MODULE_PARM_DESC(iomfb_update_notify_clients,
 		 "Send update_notify_clients_dcp during DCP startup probing");
 
+bool iomfb_create_default_fb_before_first_client;
+module_param(iomfb_create_default_fb_before_first_client, bool, 0644);
+MODULE_PARM_DESC(iomfb_create_default_fb_before_first_client,
+		 "Send do_create_default_frame_buffer before first_client_open during firmware probing");
+
 bool iomfb_update_dfb_before_first_client;
 module_param(iomfb_update_dfb_before_first_client, bool, 0644);
 MODULE_PARM_DESC(iomfb_update_dfb_before_first_client,

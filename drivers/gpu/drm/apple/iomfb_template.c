@@ -2643,6 +2643,28 @@ static void init_maybe_update_dfb(struct apple_dcp *dcp, void *out, void *cookie
 	dcp_update_dfb(dcp, false, &surf, init_after_update_dfb, NULL);
 }
 
+static void init_after_create_default_fb(struct apple_dcp *dcp, void *out,
+					 void *cookie)
+{
+	u32 ret = out ? *(u32 *)out : 0;
+
+	dev_info(dcp->dev, "startup create_default_fb returned:0x%x\n", ret);
+	init_maybe_update_dfb(dcp, NULL, NULL);
+}
+
+static void init_maybe_create_default_fb(struct apple_dcp *dcp, void *out,
+					 void *cookie)
+{
+	if (!iomfb_create_default_fb_before_first_client) {
+		init_maybe_update_dfb(dcp, NULL, NULL);
+		return;
+	}
+
+	dev_info(dcp->dev,
+		 "calling startup do_create_default_frame_buffer before first_client_open\n");
+	dcp_create_default_fb(dcp, false, init_after_create_default_fb, NULL);
+}
+
 static void init_after_is_keep_on_screen(struct apple_dcp *dcp, void *out,
 					 void *cookie)
 {
@@ -2683,7 +2705,7 @@ static void init_update_notify_clients(struct apple_dcp *dcp, void *out,
 
 	dev_info(dcp->dev,
 		 "sending update_notify_clients_dcp for firmware-14 probe\n");
-	dcp_update_notify_clients_dcp(dcp, false, &req, init_maybe_update_dfb,
+	dcp_update_notify_clients_dcp(dcp, false, &req, init_maybe_create_default_fb,
 				      NULL);
 }
 
@@ -2694,7 +2716,7 @@ static void init_1(struct apple_dcp *dcp, void *out, void *cookie)
 	dcp_enable_disable_video_power_savings(dcp, false, &val,
 					       iomfb_update_notify_clients ?
 						       init_update_notify_clients :
-						       init_maybe_update_dfb,
+						       init_maybe_create_default_fb,
 					       NULL);
 }
 

@@ -23,6 +23,7 @@ extern uint iomfb_set_parameter_count_override;
 extern bool iomfb_compact_set_parameter;
 extern bool iomfb_power_before_display_device;
 extern bool iomfb_update_notify_clients;
+extern bool iomfb_create_default_fb_before_first_client;
 extern bool iomfb_update_dfb_before_first_client;
 extern uint iomfb_update_dfb_surface_id;
 extern uint iomfb_update_dfb_colorspace;
