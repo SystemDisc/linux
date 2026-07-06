@@ -69,6 +69,18 @@ module_param_string(iomfb_first_client_open_tag, iomfb_first_client_open_tag,
 MODULE_PARM_DESC(iomfb_first_client_open_tag,
 		 "Override dcpep_first_client_open tag, e.g. A456, for firmware probing");
 
+static char iomfb_set_power_state_tag[5];
+module_param_string(iomfb_set_power_state_tag, iomfb_set_power_state_tag,
+		    sizeof(iomfb_set_power_state_tag), 0644);
+MODULE_PARM_DESC(iomfb_set_power_state_tag,
+		 "Override dcpep_set_power_state tag, e.g. A468, for firmware probing");
+
+static char iomfb_set_parameter_dcp_tag[5];
+module_param_string(iomfb_set_parameter_dcp_tag, iomfb_set_parameter_dcp_tag,
+		    sizeof(iomfb_set_parameter_dcp_tag), 0644);
+MODULE_PARM_DESC(iomfb_set_parameter_dcp_tag,
+		 "Override dcpep_set_parameter_dcp tag, e.g. A439, for firmware probing");
+
 bool iomfb_d121_force_true;
 module_param(iomfb_d121_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d121_force_true,
@@ -436,24 +448,58 @@ static u8 dcp_pop_depth(u8 *depth)
 	return --(*depth);
 }
 
+static bool iomfb_valid_method_tag(const char *tag, size_t len)
+{
+	return len == 4 && tag[0] == 'A' &&
+	       tag[1] >= '0' && tag[1] <= '9' &&
+	       tag[2] >= '0' && tag[2] <= '9' &&
+	       tag[3] >= '0' && tag[3] <= '9';
+}
+
+static const char *iomfb_method_tag_override(const char *param_name,
+					     const char *tag, size_t size)
+{
+	size_t len = strnlen(tag, size);
+
+	if (!len)
+		return NULL;
+
+	if (iomfb_valid_method_tag(tag, len))
+		return tag;
+
+	pr_warn_once("appledrm: ignoring invalid %s=%s\n", param_name, tag);
+	return NULL;
+}
+
 static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 {
 	bool first_client = !strcmp(call->name, "dcpep_first_client_open");
-	size_t override_len = strnlen(iomfb_first_client_open_tag,
-				      sizeof(iomfb_first_client_open_tag));
+	bool set_power = !strcmp(call->name, "dcpep_set_power_state");
+	bool set_parameter = !strcmp(call->name, "dcpep_set_parameter_dcp");
+	const char *override;
 
-	if (first_client && override_len) {
-		if (override_len == 4 && iomfb_first_client_open_tag[0] == 'A' &&
-		    iomfb_first_client_open_tag[1] >= '0' &&
-		    iomfb_first_client_open_tag[1] <= '9' &&
-		    iomfb_first_client_open_tag[2] >= '0' &&
-		    iomfb_first_client_open_tag[2] <= '9' &&
-		    iomfb_first_client_open_tag[3] >= '0' &&
-		    iomfb_first_client_open_tag[3] <= '9')
-			return iomfb_first_client_open_tag;
+	if (first_client) {
+		override = iomfb_method_tag_override("iomfb_first_client_open_tag",
+						    iomfb_first_client_open_tag,
+						    sizeof(iomfb_first_client_open_tag));
+		if (override)
+			return override;
+	}
 
-		pr_warn_once("appledrm: ignoring invalid iomfb_first_client_open_tag=%s\n",
-			     iomfb_first_client_open_tag);
+	if (set_power) {
+		override = iomfb_method_tag_override("iomfb_set_power_state_tag",
+						    iomfb_set_power_state_tag,
+						    sizeof(iomfb_set_power_state_tag));
+		if (override)
+			return override;
+	}
+
+	if (set_parameter) {
+		override = iomfb_method_tag_override("iomfb_set_parameter_dcp_tag",
+						    iomfb_set_parameter_dcp_tag,
+						    sizeof(iomfb_set_parameter_dcp_tag));
+		if (override)
+			return override;
 	}
 
 	if (iomfb_fw14_legacy_method_map) {
