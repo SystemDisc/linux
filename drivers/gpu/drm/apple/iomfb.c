@@ -774,7 +774,7 @@ void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	if (iomfb_skip_flush_invalid_mode && !dcp->valid_mode) {
 		dev_info(dcp->dev,
 			 "skipping IOMFB flush/swap because valid_mode is false\n");
-		schedule_work(&dcp->vblank_wq);
+		dcp_schedule_vblank(dcp, "flush-invalid-mode");
 		return;
 	}
 
@@ -797,7 +797,7 @@ void dcp_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 		/* HACK: issue a delayed vblank event to avoid timeouts in
 		 * drm_atomic_helper_wait_for_vblanks().
 		 */
-		schedule_work(&dcp->vblank_wq);
+		dcp_schedule_vblank(dcp, "flush-command-channel-busy");
 		return;
 	} else if (dcp->ch_cmd.warned_busy) {
 		dcp->ch_cmd.warned_busy = false;

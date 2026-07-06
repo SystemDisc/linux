@@ -199,6 +199,7 @@ struct apple_dcp {
 	/* swap id of the last completed swap */
 	u32 last_swap_id;
 	ktime_t swap_start;
+	const char *vblank_work_reason;
 
 	/* Current display mode */
 	bool during_modeset;

@@ -68,6 +68,16 @@ module_param(dcp_poll_during_start_wait, bool, 0644);
 MODULE_PARM_DESC(dcp_poll_during_start_wait,
 		 "Poll RTKit while waiting for DCP display startup");
 
+static bool dcp_trace_drm_events;
+module_param(dcp_trace_drm_events, bool, 0644);
+MODULE_PARM_DESC(dcp_trace_drm_events,
+		 "Trace DCP DRM event delivery sources");
+
+static bool dcp_disable_fallback_vblank;
+module_param(dcp_disable_fallback_vblank, bool, 0644);
+MODULE_PARM_DESC(dcp_disable_fallback_vblank,
+		 "Diagnostic: suppress fallback vblank events not backed by DCP swap completion");
+
 /* copied and simplified from drm_vblank.c */
 static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
@@ -142,9 +152,21 @@ static void dcp_crtc_send_page_flip_event(struct apple_crtc *crtc,
 void dcp_drm_crtc_vblank(struct apple_crtc *crtc)
 {
 	unsigned long flags;
+	struct apple_dcp *dcp = platform_get_drvdata(crtc->dcp);
 
 	spin_lock_irqsave(&crtc->base.dev->event_lock, flags);
 	if (crtc->event) {
+		if (dcp_disable_fallback_vblank) {
+			dev_warn(dcp->dev,
+				 "diagnostic: suppressing fallback DRM vblank event type=0x%x\n",
+				 crtc->event->event.base.type);
+			spin_unlock_irqrestore(&crtc->base.dev->event_lock, flags);
+			return;
+		}
+		if (dcp_trace_drm_events)
+			dev_info(dcp->dev,
+				 "DRM event source=fallback-vblank type=0x%x\n",
+				 crtc->event->event.base.type);
 		drm_crtc_send_vblank_event(&crtc->base, crtc->event);
 		crtc->event = NULL;
 	}
@@ -158,6 +180,11 @@ void dcp_drm_crtc_page_flip(struct apple_dcp *dcp, ktime_t now)
 
 	spin_lock_irqsave(&crtc->base.dev->event_lock, flags);
 	if (crtc->event) {
+		if (dcp_trace_drm_events)
+			dev_info(dcp->dev,
+				 "DRM event source=dcp-pageflip type=0x%x swap_start=%lld\n",
+				 crtc->event->event.base.type,
+				 ktime_to_ns(dcp->swap_start));
 		if (crtc->event->event.base.type == DRM_EVENT_FLIP_COMPLETE)
 			dcp_crtc_send_page_flip_event(crtc, crtc->event, now, dcp->swap_start);
 		else
@@ -166,6 +193,23 @@ void dcp_drm_crtc_page_flip(struct apple_dcp *dcp, ktime_t now)
 		dcp->swap_start = KTIME_MIN;
 	}
 	spin_unlock_irqrestore(&crtc->base.dev->event_lock, flags);
+}
+
+void dcp_schedule_vblank(struct apple_dcp *dcp, const char *reason)
+{
+	if (dcp_disable_fallback_vblank) {
+		dev_warn(dcp->dev,
+			 "diagnostic: suppressing fallback vblank work reason=%s\n",
+			 reason);
+		return;
+	}
+
+	dcp->vblank_work_reason = reason;
+	if (dcp_trace_drm_events)
+		dev_info(dcp->dev,
+			 "DRM event source=schedule-vblank-work reason=%s\n",
+			 reason);
+	schedule_work(&dcp->vblank_wq);
 }
 
 void dcp_set_dimensions(struct apple_dcp *dcp)
@@ -226,6 +270,10 @@ static void dcp_delayed_vblank(struct work_struct *work)
 
 	dcp = container_of(work, struct apple_dcp, vblank_wq);
 	mdelay(5);
+	if (dcp_trace_drm_events)
+		dev_info(dcp->dev,
+			 "DRM event source=delayed-vblank-work reason=%s\n",
+			 dcp->vblank_work_reason ?: "unknown");
 	dcp_drm_crtc_vblank(dcp->crtc);
 }
 

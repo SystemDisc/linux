@@ -389,6 +389,7 @@ static void dcpep_cb_swap_complete(struct apple_dcp *dcp,
 {
 	ktime_t now = ktime_get();
 	trace_iomfb_swap_complete(dcp, resp->swap_id);
+	dev_info(dcp->dev, "D589 swap_complete swap_id=%u\n", resp->swap_id);
 	dcp->last_swap_id = resp->swap_id;
 
 	dcp_drm_crtc_page_flip(dcp, now);
@@ -1313,7 +1314,7 @@ static void dcp_swap_cleared(struct apple_dcp *dcp, void *data, void *cookie)
 
 	if (resp->ret) {
 		dev_err(dcp->dev, "swap_clear failed! status %u\n", resp->ret);
-		dcp_drm_crtc_vblank(dcp->crtc);
+		dcp_schedule_vblank(dcp, "swap-clear-failed");
 		return;
 	}
 
@@ -1698,7 +1699,7 @@ static void dcpep_cb_hotplug(struct apple_dcp *dcp, u64 *connected)
 		dcp->valid_mode = false;
 		/* after unplug swap will not complete until the next
 		 * set_digital_out_mode */
-		schedule_work(&dcp->vblank_wq);
+		dcp_schedule_vblank(dcp, "hotplug-disconnect");
 	}
 
 	if (connector && connector->connected != !!(*connected)) {
@@ -1879,7 +1880,7 @@ static void dcp_swapped(struct apple_dcp *dcp, void *data, void *cookie)
 
 	if (resp->ret) {
 		dev_err(dcp->dev, "swap failed! status %u\n", resp->ret);
-		dcp_drm_crtc_vblank(dcp->crtc);
+		dcp_schedule_vblank(dcp, "swap-submit-failed");
 		return;
 	}
 	dcp->swap_start = ktime_get();
@@ -1950,7 +1951,7 @@ static void dcp_swap_started(struct apple_dcp *dcp, void *data, void *cookie)
 	if (resp->ret) {
 		dev_err(dcp->dev, "swap_start failed! status %u\n", resp->ret);
 		kfree(swap_cookie);
-		dcp_drm_crtc_vblank(dcp->crtc);
+		dcp_schedule_vblank(dcp, "swap-start-failed");
 		return;
 	}
 
@@ -2018,7 +2019,7 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 					      iomfb_poll_after_swap_start_ms);
 	} else {
 		kfree(swap_cookie);
-		dcp_drm_crtc_vblank(dcp->crtc);
+		dcp_schedule_vblank(dcp, "swap-no-connector");
 	}
 }
 
@@ -2342,7 +2343,7 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 	if (!has_surface && !crtc_state->color_mgmt_changed) {
 		if (crtc_state->enable && crtc_state->active &&
 		    !crtc_state->planes_changed) {
-			schedule_work(&dcp->vblank_wq);
+			dcp_schedule_vblank(dcp, "flush-no-surface");
 			return;
 		}
 
@@ -2406,7 +2407,7 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 
 		swap_cookie = kzalloc(sizeof(*swap_cookie), GFP_KERNEL);
 		if (!swap_cookie) {
-			dcp_drm_crtc_vblank(dcp->crtc);
+			dcp_schedule_vblank(dcp, "swap-matrix-cookie-alloc-failed");
 			return;
 		}
 
