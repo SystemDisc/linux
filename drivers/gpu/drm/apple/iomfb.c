@@ -186,6 +186,11 @@ module_param(iomfb_set_matrix_after_swap_start, bool, 0644);
 MODULE_PARM_DESC(iomfb_set_matrix_after_swap_start,
 		 "Diagnostic: issue set_matrix after swap_start ACK and before swap_submit");
 
+bool iomfb_force_swap_background;
+module_param(iomfb_force_swap_background, bool, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_background,
+		 "Diagnostic: force IOMFB_SET_BACKGROUND | 0x7 in visible swap records");
+
 int iomfb_force_swap_layer = -1;
 module_param(iomfb_force_swap_layer, int, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_layer,

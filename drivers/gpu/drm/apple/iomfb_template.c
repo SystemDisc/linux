@@ -2295,6 +2295,12 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		req->swap.flags1 = iomfb_force_swap_flags1;
 	if (iomfb_force_swap_flags2)
 		req->swap.flags2 = iomfb_force_swap_flags2;
+	if (has_surface && iomfb_force_swap_background) {
+		dev_info(dcp->dev,
+			 "forcing swap background bits for probe\n");
+		req->swap.swap_enabled |= IOMFB_SET_BACKGROUND | 0x7;
+		req->swap.bg_color = 0xFF000000;
+	}
 	req->swap.swap_completed = req->swap.swap_enabled;
 
 	/* update brightness if changed */
