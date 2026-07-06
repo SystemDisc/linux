@@ -20,6 +20,7 @@ extern bool iomfb_poll_during_modeset_wait;
 extern bool iomfb_poll_during_power_wait;
 extern bool iomfb_set_parameter_on_main;
 extern uint iomfb_set_parameter_count_override;
+extern bool iomfb_compact_set_parameter;
 extern bool iomfb_power_before_display_device;
 extern bool iomfb_update_notify_clients;
 extern bool iomfb_frame_sync_copy_input;

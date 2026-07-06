@@ -90,8 +90,43 @@ DCP_THUNK_VOID(dcp_setup_video_limits, dcpep_setup_video_limits);
 DCP_THUNK_VOID(dcp_set_create_dfb, dcpep_set_create_dfb);
 DCP_THUNK_VOID(dcp_first_client_open, dcpep_first_client_open);
 
-DCP_THUNK_INOUT(dcp_set_parameter_dcp, dcpep_set_parameter_dcp,
-		struct dcp_set_parameter_dcp, u32);
+static void dcp_set_parameter_dcp(struct apple_dcp *dcp, bool oob,
+				  struct dcp_set_parameter_dcp *data,
+				  dcp_callback_t cb, void *cookie)
+{
+	if (iomfb_compact_set_parameter) {
+		u8 req[sizeof(u32) + ARRAY_SIZE(data->value) * sizeof(u64) +
+		       sizeof(u32)] = {};
+		u8 *p = req;
+		u32 count = min_t(u32, data->count, ARRAY_SIZE(data->value));
+		u32 in_len = sizeof(u32) + count * sizeof(u64) + sizeof(u32);
+		u32 i;
+
+		if (count != data->count)
+			dev_warn(dcp->dev,
+				 "clamping compact set_parameter count from %u to %u\n",
+				 data->count, count);
+
+		put_unaligned_le32(data->param, p);
+		p += sizeof(u32);
+		for (i = 0; i < count; i++) {
+			put_unaligned_le64(data->value[i], p);
+			p += sizeof(u64);
+		}
+		put_unaligned_le32(count, p);
+
+		dev_info(dcp->dev,
+			 "compact set_parameter_dcp param=%u count=%u in=%u value0=0x%x\n",
+			 data->param, count, in_len, data->value[0]);
+
+		dcp_push(dcp, oob, &dcp_methods[dcpep_set_parameter_dcp],
+			 in_len, sizeof(u32), req, cb, cookie);
+		return;
+	}
+
+	dcp_push(dcp, oob, &dcp_methods[dcpep_set_parameter_dcp],
+		 sizeof(*data), sizeof(u32), data, cb, cookie);
+}
 
 DCP_THUNK_INOUT(dcp_enable_disable_video_power_savings,
 		dcpep_enable_disable_video_power_savings, u32, int);

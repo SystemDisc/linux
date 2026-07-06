@@ -118,6 +118,11 @@ module_param(iomfb_set_parameter_count_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_set_parameter_count_override,
 		 "Override set_parameter_dcp count for firmware probing");
 
+bool iomfb_compact_set_parameter;
+module_param(iomfb_compact_set_parameter, bool, 0644);
+MODULE_PARM_DESC(iomfb_compact_set_parameter,
+		 "Use compact V>=13.5 set_parameter_dcp ABI for firmware probing");
+
 bool iomfb_power_before_display_device;
 module_param(iomfb_power_before_display_device, bool, 0644);
 MODULE_PARM_DESC(iomfb_power_before_display_device,
