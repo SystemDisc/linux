@@ -382,8 +382,6 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 	if (iomfb_fw14_m1n1_method_map) {
 		if (!strcmp(call->name, "dcpep_set_create_dfb"))
 			return "A357";
-		if (!strcmp(call->name, "iomfbep_a358_vi_set_temperature_hint"))
-			return "A358";
 		if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
 			return "A439";
 		if (!strcmp(call->name, "dcpep_create_default_fb"))
