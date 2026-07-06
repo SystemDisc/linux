@@ -46,6 +46,7 @@ extern uint iomfb_poll_after_swap_submit_ms;
 extern bool iomfb_fake_pageflip_on_swap_submit_ack;
 extern uint iomfb_poll_after_set_matrix_ms;
 extern bool iomfb_set_matrix_after_swap_start;
+extern bool iomfb_m1n1_post_swap_init;
 extern bool iomfb_force_swap_background;
 extern int iomfb_force_swap_layer;
 extern uint iomfb_force_surface_id;

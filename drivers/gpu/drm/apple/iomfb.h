@@ -170,6 +170,7 @@ enum dcpep_method {
 	iomfbep_last_client_close,
 	iomfbep_abort_swaps_dcp,
 	iomfbep_set_matrix,
+	iomfbep_set_brightness_correction,
 	dcpep_num_methods
 };
 

@@ -58,6 +58,8 @@ IOMFB_THUNK_INOUT(set_matrix);
 IOMFB_THUNK_INOUT(get_color_remap_mode);
 IOMFB_THUNK_INOUT(last_client_close);
 IOMFB_THUNK_INOUT(abort_swaps_dcp);
+DCP_THUNK_INOUT(dcp_set_brightness_correction,
+		iomfbep_set_brightness_correction, u32, u32);
 
 DCP_THUNK_INOUT(dcp_swap_submit, dcpep_swap_submit,
 		struct DCP_FW_NAME(dcp_swap_submit_req),
@@ -1963,17 +1965,76 @@ static void submit_started_swap(struct apple_dcp *dcp)
 				      iomfb_poll_after_swap_submit_ms);
 }
 
+static void dcp_post_swap_param6_done(struct apple_dcp *dcp, void *data,
+				      void *cookie)
+{
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "post-swap_start set_parameter_dcp(6) ret=%u\n",
+		 ret);
+	submit_started_swap(dcp);
+	kfree(cookie);
+}
+
+static void dcp_post_swap_param3_done(struct apple_dcp *dcp, void *data,
+				      void *cookie)
+{
+	struct dcp_set_parameter_dcp param = {
+		.param = 6,
+		.value = { 65536 },
+		.count = 1,
+	};
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "post-swap_start set_parameter_dcp(3) ret=%u\n",
+		 ret);
+	dev_info(dcp->dev, "post-swap_start set_parameter_dcp param=6 value=65536\n");
+	dcp_set_parameter_dcp(dcp, false, &param, dcp_post_swap_param6_done,
+			      cookie);
+}
+
+static void dcp_post_swap_brightness_done(struct apple_dcp *dcp, void *data,
+					  void *cookie)
+{
+	struct dcp_set_parameter_dcp param = {
+		.param = 3,
+		.value = { 65536 },
+		.count = 1,
+	};
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "post-swap_start setBrightnessCorrection ret=%u\n",
+		 ret);
+	dev_info(dcp->dev, "post-swap_start set_parameter_dcp param=3 value=65536\n");
+	dcp_set_parameter_dcp(dcp, false, &param, dcp_post_swap_param3_done,
+			      cookie);
+}
+
+static void submit_after_post_swap_init(struct apple_dcp *dcp, void *cookie)
+{
+	u32 value = 65536;
+
+	if (!iomfb_m1n1_post_swap_init) {
+		submit_started_swap(dcp);
+		kfree(cookie);
+		return;
+	}
+
+	dev_info(dcp->dev,
+		 "post-swap_start setBrightnessCorrection value=65536\n");
+	dcp_set_brightness_correction(dcp, false, &value,
+				      dcp_post_swap_brightness_done, cookie);
+}
+
 static void dcp_set_matrix_then_submit(struct apple_dcp *dcp, void *data,
 				       void *cookie)
 {
 	struct iomfb_set_matrix_resp *resp = data;
-	struct swap_matrix_cookie *swap_cookie = cookie;
 
 	dev_info(dcp->dev, "post-swap_start set_matrix ack ret=%u\n",
 		 resp->ret);
 
-	submit_started_swap(dcp);
-	kfree(swap_cookie);
+	submit_after_post_swap_init(dcp, cookie);
 }
 
 static void dcp_swap_started(struct apple_dcp *dcp, void *data, void *cookie)
@@ -2003,8 +2064,7 @@ static void dcp_swap_started(struct apple_dcp *dcp, void *data, void *cookie)
 		return;
 	}
 
-	submit_started_swap(dcp);
-	kfree(swap_cookie);
+	submit_after_post_swap_init(dcp, swap_cookie);
 }
 
 static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,

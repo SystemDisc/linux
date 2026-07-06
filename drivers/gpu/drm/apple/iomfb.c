@@ -261,6 +261,11 @@ module_param(iomfb_set_matrix_after_swap_start, bool, 0644);
 MODULE_PARM_DESC(iomfb_set_matrix_after_swap_start,
 		 "Diagnostic: issue set_matrix after swap_start ACK and before swap_submit");
 
+bool iomfb_m1n1_post_swap_init;
+module_param(iomfb_m1n1_post_swap_init, bool, 0644);
+MODULE_PARM_DESC(iomfb_m1n1_post_swap_init,
+		 "Diagnostic: issue m1n1-style brightness/set_parameter calls after swap_start");
+
 bool iomfb_force_swap_background;
 module_param(iomfb_force_swap_background, bool, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_background,
