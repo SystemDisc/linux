@@ -55,7 +55,12 @@ MODULE_PARM_DESC(iomfb_fw14_method_map,
 static bool iomfb_fw14_m1n1_method_map;
 module_param(iomfb_fw14_m1n1_method_map, bool, 0644);
 MODULE_PARM_DESC(iomfb_fw14_m1n1_method_map,
-		 "Use m1n1 dcp-clusterfuck IOMFB method tags for T8122 probing");
+		 "Use m1n1 V>=13.5 IOMFB method tags for T8122 probing");
+
+static bool iomfb_fw14_legacy_method_map;
+module_param(iomfb_fw14_legacy_method_map, bool, 0644);
+MODULE_PARM_DESC(iomfb_fw14_legacy_method_map,
+		 "Use legacy/V<13.5 IOMFB method tags for T8122 probing");
 
 static char iomfb_first_client_open_tag[5];
 module_param_string(iomfb_first_client_open_tag, iomfb_first_client_open_tag,
@@ -410,7 +415,7 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 			     iomfb_first_client_open_tag);
 	}
 
-	if (iomfb_fw14_m1n1_method_map) {
+	if (iomfb_fw14_legacy_method_map) {
 		if (!strcmp(call->name, "dcpep_set_create_dfb"))
 			return "A357";
 		if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
@@ -431,6 +436,33 @@ static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 			return "A464";
 		if (!strcmp(call->name, "dcpep_set_power_state"))
 			return "A468";
+
+		return NULL;
+	}
+
+	if (iomfb_fw14_m1n1_method_map) {
+		if (!strcmp(call->name, "dcpep_set_create_dfb"))
+			return "A373";
+		if (!strcmp(call->name, "iomfbep_a358_vi_set_temperature_hint"))
+			return "A374";
+		if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
+			return "A441";
+		if (!strcmp(call->name, "dcpep_create_default_fb"))
+			return "A445";
+		if (!strcmp(call->name, "dcpep_enable_disable_video_power_savings"))
+			return "A449";
+		if (first_client)
+			return "A456";
+		if (!strcmp(call->name, "iomfbep_last_client_close"))
+			return "A457";
+		if (!strcmp(call->name, "dcpep_set_display_refresh_properties"))
+			return "A463";
+		if (!strcmp(call->name, "dcpep_flush_supports_power"))
+			return "A466";
+		if (!strcmp(call->name, "iomfbep_abort_swaps_dcp"))
+			return "A467";
+		if (!strcmp(call->name, "dcpep_set_power_state"))
+			return "A472";
 
 		return NULL;
 	}
