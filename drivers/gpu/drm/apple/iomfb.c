@@ -52,6 +52,11 @@ module_param(iomfb_fw14_method_map, bool, 0644);
 MODULE_PARM_DESC(iomfb_fw14_method_map,
 		 "Use traced firmware-14 IOMFB method tags for T8122 probing");
 
+static bool iomfb_fw14_m1n1_method_map;
+module_param(iomfb_fw14_m1n1_method_map, bool, 0644);
+MODULE_PARM_DESC(iomfb_fw14_m1n1_method_map,
+		 "Use m1n1 dcp-clusterfuck IOMFB method tags for T8122 probing");
+
 bool iomfb_d121_force_true;
 module_param(iomfb_d121_force_true, bool, 0644);
 MODULE_PARM_DESC(iomfb_d121_force_true,
@@ -371,8 +376,35 @@ static u8 dcp_pop_depth(u8 *depth)
 
 static const char *iomfb_fw14_method_tag(const struct dcp_method_entry *call)
 {
-	if (!iomfb_fw14_method_map)
+	if (!iomfb_fw14_method_map && !iomfb_fw14_m1n1_method_map)
 		return NULL;
+
+	if (iomfb_fw14_m1n1_method_map) {
+		if (!strcmp(call->name, "dcpep_set_create_dfb"))
+			return "A357";
+		if (!strcmp(call->name, "iomfbep_a358_vi_set_temperature_hint"))
+			return "A358";
+		if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
+			return "A439";
+		if (!strcmp(call->name, "dcpep_create_default_fb"))
+			return "A443";
+		if (!strcmp(call->name, "dcpep_enable_disable_video_power_savings"))
+			return "A447";
+		if (!strcmp(call->name, "dcpep_first_client_open"))
+			return "A454";
+		if (!strcmp(call->name, "iomfbep_last_client_close"))
+			return "A455";
+		if (!strcmp(call->name, "dcpep_set_display_refresh_properties"))
+			return "A460";
+		if (!strcmp(call->name, "dcpep_flush_supports_power"))
+			return "A463";
+		if (!strcmp(call->name, "iomfbep_abort_swaps_dcp"))
+			return "A464";
+		if (!strcmp(call->name, "dcpep_set_power_state"))
+			return "A468";
+
+		return NULL;
+	}
 
 	if (!strcmp(call->name, "dcpep_set_parameter_dcp"))
 		return "A438";
