@@ -610,18 +610,19 @@ static void afk_recv_handle(struct apple_dcp_afkep *ep, u32 channel, u32 type,
 		return afk_recv_handle_std_service(
 			ep, channel, type, ehdr, eshdr, payload, payload_size);
 
-	if (type == EPIC_TYPE_NOTIFY && eshdr->category == EPIC_CAT_NOTIFY &&
-	    service->ops->notify) {
+	if (type == EPIC_TYPE_NOTIFY && service->ops->notify) {
 		int ret;
 
-		ret = service->ops->notify(service, subtype, le16_to_cpu(eshdr->tag),
-					   payload, payload_size);
+		ret = service->ops->notify(service, subtype, eshdr->category,
+					   le16_to_cpu(eshdr->tag), payload,
+					   payload_size);
 		if (!ret)
 			return;
 	}
 
-	dev_err(ep->dcp->dev, "AFK[ep:%02x]: channel %d received unhandled message "
-		"(type %x subtype %x)\n", ep->endpoint, channel, type, subtype);
+	dev_err(ep->dcp->dev,
+		"AFK[ep:%02x]: channel %d received unhandled message (type %x category %x subtype %x)\n",
+		ep->endpoint, channel, type, eshdr->category, subtype);
 	print_hex_dump(KERN_INFO, "AFK: ", DUMP_PREFIX_NONE, 16, 1, payload,
 				   payload_size, true);
 }

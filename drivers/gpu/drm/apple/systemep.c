@@ -3,6 +3,7 @@
 
 #include <linux/completion.h>
 #include <linux/soc/apple/rtkit.h>
+#include <linux/unaligned.h>
 
 #include "afk.h"
 #include "dcp.h"
@@ -64,8 +65,24 @@ static void system_log_work(struct work_struct *work_)
 	kfree(work);
 }
 
+static void system_complete_command(struct apple_epic_service *service, u16 tag,
+				    u32 retcode)
+{
+	unsigned long flags;
+	u8 idx = tag & 0xff;
+
+	spin_lock_irqsave(&service->lock, flags);
+	if (idx < MAX_PENDING_CMDS && service->cmds[idx].tag == tag &&
+	    !service->cmds[idx].done && service->cmds[idx].completion) {
+		service->cmds[idx].done = true;
+		service->cmds[idx].retcode = retcode;
+		complete(service->cmds[idx].completion);
+	}
+	spin_unlock_irqrestore(&service->lock, flags);
+}
+
 static int system_notify(struct apple_epic_service *service, enum epic_subtype type,
-			 u16 tag, const void *data, size_t data_size)
+			 u8 category, u16 tag, const void *data, size_t data_size)
 {
 	struct apple_dcp *dcp = service->ep->dcp;
 	void *reply;
@@ -76,11 +93,11 @@ static int system_notify(struct apple_epic_service *service, enum epic_subtype t
 		return -EOPNOTSUPP;
 
 	if (data_size >= sizeof(retcode))
-		memcpy(&retcode, data, sizeof(retcode));
+		retcode = get_unaligned_le32(data);
 
 	dev_info(dcp->dev,
-		 "systemep: setProperty notify type=0x%x tag=0x%x len=%zu retcode=0x%x\n",
-		 type, tag, data_size, retcode);
+		 "systemep: setProperty notify category=0x%x type=0x%x tag=0x%x len=%zu retcode=0x%x\n",
+		 category, type, tag, data_size, retcode);
 
 	reply = kmemdup(data, data_size, GFP_KERNEL);
 	if (!reply)
@@ -100,6 +117,8 @@ static int system_notify(struct apple_epic_service *service, enum epic_subtype t
 	ret = afk_send_epic(service->ep, service->channel, tag, EPIC_TYPE_NOTIFY_ACK,
 			    EPIC_CAT_REPLY, type, reply, data_size);
 	kfree(reply);
+	if (!ret)
+		system_complete_command(service, tag, retcode);
 	return ret;
 }
 
