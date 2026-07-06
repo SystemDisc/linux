@@ -1807,6 +1807,9 @@ static void dcp_swapped(struct apple_dcp *dcp, void *data, void *cookie)
 {
 	struct DCP_FW_NAME(dcp_swap_submit_resp) *resp = data;
 
+	dev_info(dcp->dev, "swap_submit ack ret=%u unkoutbool=%u\n",
+		 resp->ret, resp->unkoutbool);
+
 	if (resp->ret) {
 		dev_err(dcp->dev, "swap failed! status %u\n", resp->ret);
 		dcp_drm_crtc_vblank(dcp->crtc);
@@ -1827,14 +1830,68 @@ static void dcp_swapped(struct apple_dcp *dcp, void *data, void *cookie)
 	}
 }
 
+struct swap_matrix_cookie {
+	bool set_matrix_before_submit;
+	struct iomfb_set_matrix_req mat;
+};
+
+static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
+				  u32 timeout_ms);
+
+static void submit_started_swap(struct apple_dcp *dcp)
+{
+	u32 swap_id = DCP_FW_UNION(dcp->swap).swap.swap_id;
+
+	trace_iomfb_swap_submit(dcp, swap_id);
+	dev_info(dcp->dev, "submitting swap_id=%u\n", swap_id);
+	dcp_swap_submit(dcp, false, &DCP_FW_UNION(dcp->swap), dcp_swapped, NULL);
+
+	if (iomfb_poll_after_swap_submit_ms)
+		poll_after_iomfb_call(dcp, "swap_submit",
+				      iomfb_poll_after_swap_submit_ms);
+}
+
+static void dcp_set_matrix_then_submit(struct apple_dcp *dcp, void *data,
+				       void *cookie)
+{
+	struct iomfb_set_matrix_resp *resp = data;
+	struct swap_matrix_cookie *swap_cookie = cookie;
+
+	dev_info(dcp->dev, "post-swap_start set_matrix ack ret=%u\n",
+		 resp->ret);
+
+	submit_started_swap(dcp);
+	kfree(swap_cookie);
+}
+
 static void dcp_swap_started(struct apple_dcp *dcp, void *data, void *cookie)
 {
 	struct dcp_swap_start_resp *resp = data;
+	struct swap_matrix_cookie *swap_cookie = cookie;
 
 	DCP_FW_UNION(dcp->swap).swap.swap_id = resp->swap_id;
 
-	trace_iomfb_swap_submit(dcp, resp->swap_id);
-	dcp_swap_submit(dcp, false, &DCP_FW_UNION(dcp->swap), dcp_swapped, NULL);
+	dev_info(dcp->dev, "swap_start ack swap_id=%u ret=%u client=0x%llx flag1=%u flag2=%u\n",
+		 resp->swap_id, resp->ret, resp->client.handle,
+		 resp->client.flag1, resp->client.flag2);
+
+	if (resp->ret) {
+		dev_err(dcp->dev, "swap_start failed! status %u\n", resp->ret);
+		kfree(swap_cookie);
+		dcp_drm_crtc_vblank(dcp->crtc);
+		return;
+	}
+
+	if (swap_cookie && swap_cookie->set_matrix_before_submit) {
+		dev_info(dcp->dev,
+			 "issuing set_matrix after swap_start for probe\n");
+		iomfb_set_matrix(dcp, false, &swap_cookie->mat,
+				 dcp_set_matrix_then_submit, swap_cookie);
+		return;
+	}
+
+	submit_started_swap(dcp);
+	kfree(swap_cookie);
 }
 
 static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
@@ -1866,6 +1923,7 @@ static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
 static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 {
 	struct dcp_swap_start_req start_req = { 0 };
+	struct swap_matrix_cookie *swap_cookie = cookie;
 
 	start_req.client.handle = iomfb_swap_start_client_handle;
 
@@ -1880,12 +1938,14 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 			 start_req.client.flag2);
 
 	if (dcp->connector && dcp->connector->connected) {
-		dcp_swap_start(dcp, false, &start_req, dcp_swap_started, NULL);
+		dcp_swap_start(dcp, false, &start_req, dcp_swap_started,
+			       swap_cookie);
 
 		if (iomfb_poll_after_swap_start_ms)
 			poll_after_iomfb_call(dcp, "swap_start",
 					      iomfb_poll_after_swap_start_ms);
 	} else {
+		kfree(swap_cookie);
 		dcp_drm_crtc_vblank(dcp->crtc);
 	}
 }
@@ -2262,6 +2322,32 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 		dev_info(dcp->dev,
 			 "skipping set_matrix before swap_start for probe\n");
 		do_swap(dcp, NULL, NULL);
+	} else if (crtc_state->color_mgmt_changed &&
+		   iomfb_set_matrix_after_swap_start) {
+		struct swap_matrix_cookie *swap_cookie;
+
+		swap_cookie = kzalloc(sizeof(*swap_cookie), GFP_KERNEL);
+		if (!swap_cookie) {
+			dcp_drm_crtc_vblank(dcp->crtc);
+			return;
+		}
+
+		swap_cookie->set_matrix_before_submit = true;
+		swap_cookie->mat.location = 9;
+
+		if (crtc_state->ctm) {
+			struct drm_color_ctm *ctm = (struct drm_color_ctm *)crtc_state->ctm->data;
+			memcpy(swap_cookie->mat.matrix, ctm->matrix,
+			       sizeof(swap_cookie->mat.matrix));
+		} else {
+			swap_cookie->mat.matrix[0] = 1LLU << 32;
+			swap_cookie->mat.matrix[4] = 1LLU << 32;
+			swap_cookie->mat.matrix[8] = 1LLU << 32;
+		}
+
+		dev_info(dcp->dev,
+			 "deferring set_matrix until after swap_start for probe\n");
+		do_swap(dcp, NULL, swap_cookie);
 	} else if (crtc_state->color_mgmt_changed) {
 		struct iomfb_set_matrix_req mat = {
 			.location = 9,
