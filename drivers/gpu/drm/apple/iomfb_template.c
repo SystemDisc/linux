@@ -1334,6 +1334,16 @@ static u64 dcpep_cb_get_time(struct apple_dcp *dcp)
 	return ktime_to_ms(ktime_get_real());
 }
 
+static void dcpep_cb_update_backlight_factor_prop(struct apple_dcp *dcp,
+						  u32 *value)
+{
+	if (iomfb_trace_ipc)
+		dev_info(dcp->dev,
+			 "update_backlight_factor_prop value=0x%x in=%u out=%u\n",
+			 value ? *value : 0, dcp->callback_in_len,
+			 dcp->callback_out_len);
+}
+
 struct dcp_swap_cookie {
 	struct kref refcount;
 	struct completion done;
@@ -1875,6 +1885,8 @@ static bool __maybe_unused trampoline_set_frame_sync_props(struct apple_dcp *dcp
 TRAMPOLINE_INOUT(trampoline_get_frequency, dcpep_cb_get_frequency,
 		 struct dcp_get_frequency_req, u64);
 TRAMPOLINE_OUT(trampoline_get_time, dcpep_cb_get_time, u64);
+TRAMPOLINE_IN(trampoline_update_backlight_factor_prop,
+	      dcpep_cb_update_backlight_factor_prop, u32);
 TRAMPOLINE_IN(trampoline_hotplug, dcpep_cb_hotplug, u64);
 TRAMPOLINE_IN(trampoline_swap_complete_intent_gated,
 	      dcpep_cb_swap_complete_intent_gated,

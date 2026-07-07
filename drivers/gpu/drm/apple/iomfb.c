@@ -829,7 +829,7 @@ static void dcpep_handle_cb(struct apple_dcp *dcp, enum dcp_context_id context,
 	dcp->callback_out_len = hdr->out_len;
 	if (dcp->cb_handlers[tag](dcp, tag, out, in)) {
 		if (iomfb_trace_ipc && hdr->out_len) {
-			u32 out_dump = min_t(u32, hdr->out_len, 32);
+			u32 out_dump = min_t(u32, hdr->out_len, 64);
 
 			dev_info(dev,
 				 "IOMFB callback output ctx=%u tag=%c%c%c%c bytes=%*ph\n",
