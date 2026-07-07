@@ -281,6 +281,11 @@ module_param(iomfb_m1n1_pre_swap_skip_contrast, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_pre_swap_skip_contrast,
 		 "Diagnostic: skip A423 set_contrast in the m1n1-style pre-swap sequence");
 
+uint iomfb_poll_after_pre_swap_ms;
+module_param(iomfb_poll_after_pre_swap_ms, uint, 0644);
+MODULE_PARM_DESC(iomfb_poll_after_pre_swap_ms,
+		 "Diagnostic: poll RTKit after each m1n1-style pre-swap call");
+
 bool iomfb_force_swap_brightness;
 module_param(iomfb_force_swap_brightness, bool, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_brightness,

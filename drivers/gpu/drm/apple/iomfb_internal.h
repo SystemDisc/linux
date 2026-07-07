@@ -50,6 +50,7 @@ extern bool iomfb_m1n1_post_swap_init;
 extern bool iomfb_m1n1_pre_swap_init;
 extern bool iomfb_m1n1_pre_swap_skip_gamma;
 extern bool iomfb_m1n1_pre_swap_skip_contrast;
+extern uint iomfb_poll_after_pre_swap_ms;
 extern bool iomfb_force_swap_brightness;
 extern unsigned long long iomfb_force_swap_bl_unk;
 extern uint iomfb_force_swap_bl_value;

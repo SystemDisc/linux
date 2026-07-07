@@ -2097,6 +2097,13 @@ static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
 		 name, total);
 }
 
+static void poll_after_pre_swap_call(struct apple_dcp *dcp, const char *name)
+{
+	if (iomfb_poll_after_pre_swap_ms)
+		poll_after_iomfb_call(dcp, name,
+				      iomfb_poll_after_pre_swap_ms);
+}
+
 static void start_swap_after_preinit(struct apple_dcp *dcp,
 				     struct swap_matrix_cookie *swap_cookie)
 {
@@ -2154,6 +2161,7 @@ static void dcp_m1n1_pre_swap_display2_done(struct apple_dcp *dcp, void *data,
 	dev_info(dcp->dev, "pre-swap set_parameter_dcp param=14 value=0 count=1 second\n");
 	dcp_set_parameter_dcp(dcp, false, &param,
 			      dcp_m1n1_pre_swap_param2_done, cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap set_parameter_dcp second");
 }
 
 static void dcp_m1n1_pre_swap_brightness_done(struct apple_dcp *dcp,
@@ -2167,6 +2175,7 @@ static void dcp_m1n1_pre_swap_brightness_done(struct apple_dcp *dcp,
 		 handle);
 	dcp_set_display_device(dcp, false, &handle,
 			       dcp_m1n1_pre_swap_display2_done, cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap set_display_device second");
 }
 
 static void dcp_m1n1_pre_swap_contrast_done(struct apple_dcp *dcp, void *data,
@@ -2186,6 +2195,7 @@ static void dcp_m1n1_pre_swap_contrast_done(struct apple_dcp *dcp, void *data,
 	dcp_set_brightness_correction(dcp, false, &value,
 				      dcp_m1n1_pre_swap_brightness_done,
 				      cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap setBrightnessCorrection");
 }
 
 static void dcp_m1n1_pre_swap_gamma_done(struct apple_dcp *dcp, void *data,
@@ -2204,6 +2214,7 @@ static void dcp_m1n1_pre_swap_gamma_done(struct apple_dcp *dcp, void *data,
 	dev_info(dcp->dev, "pre-swap set_contrast value=0\n");
 	dcp_set_contrast(dcp, false, &req, dcp_m1n1_pre_swap_contrast_done,
 			 cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap set_contrast");
 }
 
 static void dcp_m1n1_pre_swap_start_contrast(struct apple_dcp *dcp,
@@ -2220,12 +2231,15 @@ static void dcp_m1n1_pre_swap_start_contrast(struct apple_dcp *dcp,
 		dcp_set_brightness_correction(dcp, false, &value,
 					      dcp_m1n1_pre_swap_brightness_done,
 					      cookie);
+		poll_after_pre_swap_call(dcp,
+					 "pre-swap setBrightnessCorrection");
 		return;
 	}
 
 	dev_info(dcp->dev, "pre-swap set_contrast value=0\n");
 	dcp_set_contrast(dcp, false, &req, dcp_m1n1_pre_swap_contrast_done,
 			 cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap set_contrast");
 }
 
 static void dcp_m1n1_pre_swap_param1_done(struct apple_dcp *dcp, void *data,
@@ -2254,6 +2268,7 @@ static void dcp_m1n1_pre_swap_param1_done(struct apple_dcp *dcp, void *data,
 	dev_info(dcp->dev, "pre-swap get_gamma_table\n");
 	dcp_get_gamma_table(dcp, false, req, dcp_m1n1_pre_swap_gamma_done,
 			    cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap get_gamma_table");
 	kfree(req);
 }
 
@@ -2271,6 +2286,7 @@ static void dcp_m1n1_pre_swap_display1_done(struct apple_dcp *dcp, void *data,
 	dev_info(dcp->dev, "pre-swap set_parameter_dcp param=14 value=0 count=1 first\n");
 	dcp_set_parameter_dcp(dcp, false, &param,
 			      dcp_m1n1_pre_swap_param1_done, cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap set_parameter_dcp first");
 }
 
 static void dcp_m1n1_pre_swap_start(struct apple_dcp *dcp,
@@ -2283,6 +2299,7 @@ static void dcp_m1n1_pre_swap_start(struct apple_dcp *dcp,
 		 handle);
 	dcp_set_display_device(dcp, false, &handle,
 			       dcp_m1n1_pre_swap_display1_done, swap_cookie);
+	poll_after_pre_swap_call(dcp, "pre-swap set_display_device first");
 }
 
 /* Helpers to modeset and swap, used to flush */
