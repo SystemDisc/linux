@@ -2099,9 +2099,21 @@ static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
 
 static void poll_after_pre_swap_call(struct apple_dcp *dcp, const char *name)
 {
-	if (iomfb_poll_after_pre_swap_ms)
-		poll_after_iomfb_call(dcp, name,
-				      iomfb_poll_after_pre_swap_ms);
+	static bool pre_swap_polling;
+
+	if (!iomfb_poll_after_pre_swap_ms)
+		return;
+
+	if (pre_swap_polling) {
+		dev_info(dcp->dev,
+			 "%s: pre-swap poll already active, using outer window\n",
+			 name);
+		return;
+	}
+
+	pre_swap_polling = true;
+	poll_after_iomfb_call(dcp, name, iomfb_poll_after_pre_swap_ms);
+	pre_swap_polling = false;
 }
 
 static void start_swap_after_preinit(struct apple_dcp *dcp,
