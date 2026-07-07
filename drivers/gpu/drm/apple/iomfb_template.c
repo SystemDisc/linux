@@ -2546,7 +2546,15 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 	}
 
 	/* update brightness if changed */
-	if (dcp_has_panel(dcp) && dcp->brightness.update) {
+	if (iomfb_force_swap_brightness) {
+		req->swap.bl_unk = iomfb_force_swap_bl_unk;
+		req->swap.bl_value = iomfb_force_swap_bl_value;
+		req->swap.bl_power = (u8)iomfb_force_swap_bl_power;
+		dev_info(dcp->dev,
+			 "forcing swap brightness bl_unk=0x%llx bl_value=0x%x bl_power=0x%x\n",
+			 req->swap.bl_unk, req->swap.bl_value,
+			 req->swap.bl_power);
+	} else if (dcp_has_panel(dcp) && dcp->brightness.update) {
 		req->swap.bl_unk = 1;
 		req->swap.bl_value = dcp->brightness.dac;
 		req->swap.bl_power = 0x40;
@@ -2554,17 +2562,18 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 	}
 
 	dev_info(dcp->dev,
-		 "iomfb_flush swap payload final flags1=0x%llx flags2=0x%llx "
-		 "swap_enabled=0x%x swap_completed=0x%x clear=%u "
-		 "surf_ids=%u,%u,%u,%u surf_flags=0x%x,0x%x,0x%x,0x%x "
-		 "surf_null=%u,%u,%u,%u\n",
-		 req->swap.flags1, req->swap.flags2, req->swap.swap_enabled,
-		 req->swap.swap_completed, req->clear, req->swap.surf_ids[0],
-		 req->swap.surf_ids[1], req->swap.surf_ids[2],
-		 req->swap.surf_ids[3], req->swap.surf_flags[0],
-		 req->swap.surf_flags[1], req->swap.surf_flags[2],
-		 req->swap.surf_flags[3], req->surf_null[0],
-		 req->surf_null[1], req->surf_null[2], req->surf_null[3]);
+		"iomfb_flush swap payload final flags1=0x%llx flags2=0x%llx "
+		"swap_enabled=0x%x swap_completed=0x%x clear=%u "
+		"surf_ids=%u,%u,%u,%u surf_flags=0x%x,0x%x,0x%x,0x%x "
+		"surf_null=%u,%u,%u,%u bl_unk=0x%llx bl_value=0x%x bl_power=0x%x\n",
+		req->swap.flags1, req->swap.flags2, req->swap.swap_enabled,
+		req->swap.swap_completed, req->clear, req->swap.surf_ids[0],
+		req->swap.surf_ids[1], req->swap.surf_ids[2],
+		req->swap.surf_ids[3], req->swap.surf_flags[0],
+		req->swap.surf_flags[1], req->swap.surf_flags[2],
+		req->swap.surf_flags[3], req->surf_null[0],
+		req->surf_null[1], req->surf_null[2], req->surf_null[3],
+		req->swap.bl_unk, req->swap.bl_value, req->swap.bl_power);
 
 	if (crtc_state->color_mgmt_changed && iomfb_skip_set_matrix) {
 		dev_info(dcp->dev,

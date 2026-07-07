@@ -266,6 +266,26 @@ module_param(iomfb_m1n1_post_swap_init, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_post_swap_init,
 		 "Diagnostic: issue m1n1-style brightness/set_parameter calls after swap_start");
 
+bool iomfb_force_swap_brightness;
+module_param(iomfb_force_swap_brightness, bool, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_brightness,
+		 "Diagnostic: force brightness fields in IOMFB swap records");
+
+unsigned long long iomfb_force_swap_bl_unk = 1;
+module_param(iomfb_force_swap_bl_unk, ullong, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_bl_unk,
+		 "Diagnostic: forced IOMFB swap brightness bl_unk value");
+
+uint iomfb_force_swap_bl_value = 0x58f058d0;
+module_param(iomfb_force_swap_bl_value, uint, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_bl_value,
+		 "Diagnostic: forced IOMFB swap brightness DAC value");
+
+uint iomfb_force_swap_bl_power = 0x40;
+module_param(iomfb_force_swap_bl_power, uint, 0644);
+MODULE_PARM_DESC(iomfb_force_swap_bl_power,
+		 "Diagnostic: forced IOMFB swap brightness power value");
+
 bool iomfb_force_swap_background;
 module_param(iomfb_force_swap_background, bool, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_background,
