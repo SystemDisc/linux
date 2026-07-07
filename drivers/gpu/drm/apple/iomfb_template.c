@@ -1411,6 +1411,63 @@ static void dcp_on_final(struct apple_dcp *dcp, void *out, void *cookie)
 	}
 }
 
+static struct dcp_wait_cookie *dcp_wait_cookie_alloc(void)
+{
+	struct dcp_wait_cookie *cookie;
+
+	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	if (!cookie)
+		return NULL;
+
+	init_completion(&cookie->done);
+	kref_init(&cookie->refcount);
+	/* The caller holds one reference; dcp_on_final drops the callback ref. */
+	kref_get(&cookie->refcount);
+
+	return cookie;
+}
+
+static int wait_for_iomfb_call_polled(struct apple_dcp *dcp,
+				      struct dcp_wait_cookie *cookie,
+				      const char *name, u32 timeout_ms)
+{
+	long left = msecs_to_jiffies(timeout_ms);
+	int ret = 0;
+	int total = 0;
+
+	while (left > 0) {
+		long slice = min_t(long, left, msecs_to_jiffies(10));
+		long wait_ret;
+		int polls;
+
+		wait_ret = wait_for_completion_timeout(&cookie->done, slice);
+		if (wait_ret > 0) {
+			ret = 1;
+			break;
+		}
+
+		polls = apple_rtkit_poll(dcp->rtk);
+		if (polls) {
+			total += polls;
+			dev_info(dcp->dev, "%s: polled %d RTKit message(s)\n",
+				 name, polls);
+		}
+
+		if (completion_done(&cookie->done)) {
+			ret = 1;
+			break;
+		}
+
+		left -= slice;
+	}
+
+	dev_info(dcp->dev, "%s: sync wait %s total_polls=%d\n", name,
+		 ret ? "complete" : "timed out", total);
+	kref_put(&cookie->refcount, release_wait_cookie);
+
+	return ret ? 0 : -ETIMEDOUT;
+}
+
 static void dcp_on_set_power_state(struct apple_dcp *dcp, void *out, void *cookie)
 {
 	struct dcp_set_power_state_req req = {
@@ -2382,6 +2439,158 @@ static void dcp_m1n1_pre_swap_start(struct apple_dcp *dcp,
 	poll_after_pre_swap_call(dcp, "pre-swap set_display_device first");
 }
 
+static int dcp_wait_display_device(struct apple_dcp *dcp, u32 handle,
+				   const char *name)
+{
+	struct dcp_wait_cookie *cookie;
+	int ret;
+
+	cookie = dcp_wait_cookie_alloc();
+	if (!cookie)
+		return -ENOMEM;
+
+	dev_info(dcp->dev, "%s handle=%u\n", name, handle);
+	dcp_set_display_device(dcp, false, &handle, dcp_on_final, cookie);
+	ret = wait_for_iomfb_call_polled(dcp, cookie, name, 1000);
+	return ret;
+}
+
+static int dcp_wait_set_parameter(struct apple_dcp *dcp, u32 param_id,
+				  u64 value, u32 count, const char *name)
+{
+	struct dcp_set_parameter_dcp param = {
+		.param = param_id,
+		.value = { value },
+		.count = count,
+	};
+	struct dcp_wait_cookie *cookie;
+	int ret;
+
+	cookie = dcp_wait_cookie_alloc();
+	if (!cookie)
+		return -ENOMEM;
+
+	dev_info(dcp->dev, "%s param=%u value=%llu count=%u\n", name,
+		 param_id, value, count);
+	dcp_set_parameter_dcp(dcp, false, &param, dcp_on_final, cookie);
+	ret = wait_for_iomfb_call_polled(dcp, cookie, name, 1000);
+	return ret;
+}
+
+static int dcp_wait_get_gamma_table(struct apple_dcp *dcp)
+{
+	struct dcp_get_gamma_table_req *req;
+	struct dcp_wait_cookie *cookie;
+	int ret;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	cookie = dcp_wait_cookie_alloc();
+	if (!cookie) {
+		kfree(req);
+		return -ENOMEM;
+	}
+
+	dev_info(dcp->dev, "pre-swap sync get_gamma_table\n");
+	dcp_get_gamma_table(dcp, false, req, dcp_on_final, cookie);
+	ret = wait_for_iomfb_call_polled(dcp, cookie,
+					 "pre-swap sync get_gamma_table", 1000);
+	kfree(req);
+	return ret;
+}
+
+static int dcp_wait_set_contrast(struct apple_dcp *dcp)
+{
+	struct dcp_set_contrast_req req = { 0 };
+	struct dcp_wait_cookie *cookie;
+	int ret;
+
+	cookie = dcp_wait_cookie_alloc();
+	if (!cookie)
+		return -ENOMEM;
+
+	dev_info(dcp->dev, "pre-swap sync set_contrast value=0\n");
+	dcp_set_contrast(dcp, false, &req, dcp_on_final, cookie);
+	ret = wait_for_iomfb_call_polled(dcp, cookie,
+					 "pre-swap sync set_contrast", 1000);
+	return ret;
+}
+
+static int dcp_wait_brightness_correction(struct apple_dcp *dcp)
+{
+	struct dcp_wait_cookie *cookie;
+	u32 value = 65536;
+	int ret;
+
+	cookie = dcp_wait_cookie_alloc();
+	if (!cookie)
+		return -ENOMEM;
+
+	dev_info(dcp->dev, "pre-swap sync setBrightnessCorrection value=65536\n");
+	dcp_set_brightness_correction(dcp, false, &value, dcp_on_final,
+				      cookie);
+	ret = wait_for_iomfb_call_polled(dcp, cookie,
+					 "pre-swap sync setBrightnessCorrection",
+					 1000);
+	return ret;
+}
+
+static int dcp_m1n1_pre_swap_sync_run(struct apple_dcp *dcp)
+{
+	u32 handle = dcp->main_display ? 0 : 2;
+	u32 count = dcp_set_parameter_count();
+	int ret;
+
+	dev_info(dcp->dev,
+		 "pre-swap sync m1n1-style init: handle=%u count=%u skip_gamma=%u skip_contrast=%u\n",
+		 handle, count, iomfb_m1n1_pre_swap_skip_gamma,
+		 iomfb_m1n1_pre_swap_skip_contrast);
+
+	ret = dcp_wait_display_device(dcp, handle,
+				      "pre-swap sync set_display_device first");
+	if (ret)
+		return ret;
+
+	ret = dcp_wait_set_parameter(dcp, IOMFBPARAM_ADAPTIVE_SYNC, 0, count,
+				     "pre-swap sync set_parameter_dcp first");
+	if (ret)
+		return ret;
+
+	if (!iomfb_m1n1_pre_swap_skip_gamma) {
+		ret = dcp_wait_get_gamma_table(dcp);
+		if (ret)
+			return ret;
+	} else {
+		dev_info(dcp->dev, "pre-swap sync skipping get_gamma_table\n");
+	}
+
+	if (!iomfb_m1n1_pre_swap_skip_contrast) {
+		ret = dcp_wait_set_contrast(dcp);
+		if (ret)
+			return ret;
+	} else {
+		dev_info(dcp->dev, "pre-swap sync skipping set_contrast\n");
+	}
+
+	ret = dcp_wait_brightness_correction(dcp);
+	if (ret)
+		return ret;
+
+	ret = dcp_wait_display_device(dcp, handle,
+				      "pre-swap sync set_display_device second");
+	if (ret)
+		return ret;
+
+	ret = dcp_wait_set_parameter(dcp, IOMFBPARAM_ADAPTIVE_SYNC, 0, count,
+				     "pre-swap sync set_parameter_dcp second");
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 /* Helpers to modeset and swap, used to flush */
 static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 {
@@ -2389,6 +2598,16 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 
 	if (iomfb_m1n1_pre_swap_init &&
 	    dcp->connector && dcp->connector->connected) {
+		if (iomfb_m1n1_pre_swap_sync) {
+			int ret = dcp_m1n1_pre_swap_sync_run(dcp);
+
+			if (ret)
+				dev_warn(dcp->dev,
+					 "pre-swap sync sequence failed: %d; continuing swap\n",
+					 ret);
+			start_swap_after_preinit(dcp, swap_cookie);
+			return;
+		}
 		dcp_m1n1_pre_swap_start(dcp, swap_cookie);
 		return;
 	}

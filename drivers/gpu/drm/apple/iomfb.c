@@ -271,6 +271,11 @@ module_param(iomfb_m1n1_pre_swap_init, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_pre_swap_init,
 		 "Diagnostic: issue m1n1-style gamma/contrast/brightness calls before swap_start");
 
+bool iomfb_m1n1_pre_swap_sync;
+module_param(iomfb_m1n1_pre_swap_sync, bool, 0644);
+MODULE_PARM_DESC(iomfb_m1n1_pre_swap_sync,
+		 "Diagnostic: run m1n1-style pre-swap calls synchronously with bounded RTKit polling");
+
 bool iomfb_m1n1_pre_swap_skip_gamma;
 module_param(iomfb_m1n1_pre_swap_skip_gamma, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_pre_swap_skip_gamma,
