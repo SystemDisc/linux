@@ -1969,13 +1969,69 @@ struct swap_matrix_cookie {
 static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
 				  u32 timeout_ms);
 
+static void log_swap_submit_req(struct apple_dcp *dcp,
+				struct DCP_FW_NAME(dcp_swap_submit_req) *req)
+{
+	size_t off_swap_enabled = offsetof(struct DCP_FW_NAME(dcp_swap),
+					   swap_enabled);
+	size_t off_swap_completed = offsetof(struct DCP_FW_NAME(dcp_swap),
+					     swap_completed);
+	size_t off_bl_unk = offsetof(struct DCP_FW_NAME(dcp_swap), bl_unk);
+	int i;
+
+	dev_info(dcp->dev,
+		 "swap_submit layout req=0x%zx swap=0x%zx surface=0x%zx "
+		 "off_enabled=0x%zx off_completed=0x%zx off_bl_unk=0x%zx\n",
+		 sizeof(*req), sizeof(req->swap), sizeof(req->surf[0]),
+		 off_swap_enabled, off_swap_completed, off_bl_unk);
+
+	dev_info(dcp->dev,
+		 "swap_submit nulls swap=%u surf=%u,%u,%u,%u unkout=%u clear=%u "
+		 "unkbool=%u unkdouble=0x%llx\n",
+		 req->swap_null, req->surf_null[0], req->surf_null[1],
+		 req->surf_null[2], req->surf_null[3], req->unkoutbool_null,
+		 req->clear, req->unkbool, req->unkdouble);
+
+#if DCP_FW_VER >= DCP_FW_VERSION(13, 2, 0)
+	dev_info(dcp->dev,
+		 "swap_submit v13 extra unkU64=0x%llx unkbool2=%u unkU32Ptr=0x%x "
+		 "unkU32Ptr_null=%u unkU32out_null=%u surf2_null=%u,%u,%u,%u,%u\n",
+		 req->unkU64, req->unkbool2, req->unkU32Ptr,
+		 req->unkU32Ptr_null, req->unkU32out_null, req->surf2_null[0],
+		 req->surf2_null[1], req->surf2_null[2], req->surf2_null[3],
+		 req->surf2_null[4]);
+
+	dev_info(dcp->dev,
+		 "swap_submit v13 unk_u64_a=%llx,%llx,%llx,%llx "
+		 "surf2_iova=%llx,%llx,%llx,%llx,%llx\n",
+		 req->unk_u64_a[0], req->unk_u64_a[1], req->unk_u64_a[2],
+		 req->unk_u64_a[3], req->surf2_iova[0], req->surf2_iova[1],
+		 req->surf2_iova[2], req->surf2_iova[3], req->surf2_iova[4]);
+#endif
+
+	for (i = 0; i < SWAP_SURFACES; i++) {
+		dev_info(dcp->dev,
+			 "swap_submit slot%d surf_null=%u surf_id=%u surf_flag=0x%x "
+			 "surf_unk=0x%x iova=0x%llx src=%u,%u %ux%u dst=%u,%u %ux%u\n",
+			 i, req->surf_null[i], req->swap.surf_ids[i],
+			 req->swap.surf_flags[i], req->swap.surf_unk[i],
+			 req->surf_iova[i], req->swap.src_rect[i].x,
+			 req->swap.src_rect[i].y, req->swap.src_rect[i].w,
+			 req->swap.src_rect[i].h, req->swap.dst_rect[i].x,
+			 req->swap.dst_rect[i].y, req->swap.dst_rect[i].w,
+			 req->swap.dst_rect[i].h);
+	}
+}
+
 static void submit_started_swap(struct apple_dcp *dcp)
 {
-	u32 swap_id = DCP_FW_UNION(dcp->swap).swap.swap_id;
+	struct DCP_FW_NAME(dcp_swap_submit_req) *req = &DCP_FW_UNION(dcp->swap);
+	u32 swap_id = req->swap.swap_id;
 
 	trace_iomfb_swap_submit(dcp, swap_id);
 	dev_info(dcp->dev, "submitting swap_id=%u\n", swap_id);
-	dcp_swap_submit(dcp, false, &DCP_FW_UNION(dcp->swap), dcp_swapped, NULL);
+	log_swap_submit_req(dcp, req);
+	dcp_swap_submit(dcp, false, req, dcp_swapped, NULL);
 
 	if (iomfb_poll_after_swap_submit_ms)
 		poll_after_iomfb_call(dcp, "swap_submit",
