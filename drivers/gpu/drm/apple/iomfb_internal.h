@@ -67,6 +67,9 @@ extern int iomfb_force_surface_colorspace;
 extern int iomfb_force_surface_plane_count;
 extern bool iomfb_set_active_regions;
 extern uint iomfb_swap_state_mirror_offset;
+extern bool iomfb_swap_submit_unk_u32ptr_present;
+extern uint iomfb_swap_submit_unk_u32ptr_value;
+extern bool iomfb_swap_submit_unk_u32out_present;
 extern uint iomfb_default_stride_override;
 extern ulong iomfb_clock_frequency_override;
 

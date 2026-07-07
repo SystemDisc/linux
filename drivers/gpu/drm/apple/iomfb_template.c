@@ -3033,6 +3033,20 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 				 off, sizeof(req->swap));
 		}
 	}
+#if DCP_FW_VER >= DCP_FW_VERSION(13, 2, 0)
+	if (iomfb_swap_submit_unk_u32ptr_present) {
+		req->unkU32Ptr = iomfb_swap_submit_unk_u32ptr_value;
+		req->unkU32Ptr_null = false;
+		dev_info(dcp->dev,
+			 "forcing swap_submit unkU32Ptr present value=0x%x\n",
+			 req->unkU32Ptr);
+	}
+	if (iomfb_swap_submit_unk_u32out_present) {
+		req->unkU32out_null = false;
+		dev_info(dcp->dev,
+			 "forcing swap_submit unkU32out present\n");
+	}
+#endif
 
 	/* update brightness if changed */
 	if (iomfb_force_swap_brightness) {
