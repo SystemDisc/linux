@@ -271,6 +271,16 @@ module_param(iomfb_m1n1_pre_swap_init, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_pre_swap_init,
 		 "Diagnostic: issue m1n1-style gamma/contrast/brightness calls before swap_start");
 
+bool iomfb_m1n1_pre_swap_skip_gamma;
+module_param(iomfb_m1n1_pre_swap_skip_gamma, bool, 0644);
+MODULE_PARM_DESC(iomfb_m1n1_pre_swap_skip_gamma,
+		 "Diagnostic: skip A419 get_gamma_table in the m1n1-style pre-swap sequence");
+
+bool iomfb_m1n1_pre_swap_skip_contrast;
+module_param(iomfb_m1n1_pre_swap_skip_contrast, bool, 0644);
+MODULE_PARM_DESC(iomfb_m1n1_pre_swap_skip_contrast,
+		 "Diagnostic: skip A423 set_contrast in the m1n1-style pre-swap sequence");
+
 bool iomfb_force_swap_brightness;
 module_param(iomfb_force_swap_brightness, bool, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_brightness,

@@ -2206,6 +2206,28 @@ static void dcp_m1n1_pre_swap_gamma_done(struct apple_dcp *dcp, void *data,
 			 cookie);
 }
 
+static void dcp_m1n1_pre_swap_start_contrast(struct apple_dcp *dcp,
+					     void *cookie)
+{
+	struct dcp_set_contrast_req req = { 0 };
+
+	if (iomfb_m1n1_pre_swap_skip_contrast) {
+		u32 value = 65536;
+
+		dev_info(dcp->dev, "pre-swap skipping set_contrast for probe\n");
+		dev_info(dcp->dev,
+			 "pre-swap setBrightnessCorrection value=65536\n");
+		dcp_set_brightness_correction(dcp, false, &value,
+					      dcp_m1n1_pre_swap_brightness_done,
+					      cookie);
+		return;
+	}
+
+	dev_info(dcp->dev, "pre-swap set_contrast value=0\n");
+	dcp_set_contrast(dcp, false, &req, dcp_m1n1_pre_swap_contrast_done,
+			 cookie);
+}
+
 static void dcp_m1n1_pre_swap_param1_done(struct apple_dcp *dcp, void *data,
 					  void *cookie)
 {
@@ -2215,11 +2237,17 @@ static void dcp_m1n1_pre_swap_param1_done(struct apple_dcp *dcp, void *data,
 	dev_info(dcp->dev, "pre-swap set_parameter_dcp(14) first ret=%u\n",
 		 ret);
 
+	if (iomfb_m1n1_pre_swap_skip_gamma) {
+		dev_info(dcp->dev, "pre-swap skipping get_gamma_table for probe\n");
+		dcp_m1n1_pre_swap_start_contrast(dcp, cookie);
+		return;
+	}
+
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req) {
 		dev_warn(dcp->dev,
 			 "pre-swap get_gamma_table allocation failed; continuing swap\n");
-		start_swap_after_preinit(dcp, cookie);
+		dcp_m1n1_pre_swap_start_contrast(dcp, cookie);
 		return;
 	}
 
