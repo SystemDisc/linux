@@ -76,6 +76,11 @@ DCP_THUNK_INOUT(dcp_set_digital_out_mode, dcpep_set_digital_out_mode,
 		struct dcp_set_digital_out_mode_req, u32);
 
 DCP_THUNK_INOUT(dcp_set_display_device, dcpep_set_display_device, u32, u32);
+DCP_THUNK_INOUT(dcp_get_gamma_table, dcpep_get_gamma_table,
+		struct dcp_get_gamma_table_req,
+		struct dcp_get_gamma_table_resp);
+DCP_THUNK_INOUT(dcp_set_contrast, dcpep_set_contrast,
+		struct dcp_set_contrast_req, struct dcp_set_contrast_resp);
 
 DCP_THUNK_OUT(dcp_set_display_refresh_properties,
 	      dcpep_set_display_refresh_properties, u32);
@@ -2092,11 +2097,10 @@ static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
 		 name, total);
 }
 
-/* Helpers to modeset and swap, used to flush */
-static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
+static void start_swap_after_preinit(struct apple_dcp *dcp,
+				     struct swap_matrix_cookie *swap_cookie)
 {
 	struct dcp_swap_start_req start_req = { 0 };
-	struct swap_matrix_cookie *swap_cookie = cookie;
 
 	start_req.client.handle = iomfb_swap_start_client_handle;
 	start_req.client.unk = iomfb_swap_start_client_unk;
@@ -2124,6 +2128,147 @@ static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
 		kfree(swap_cookie);
 		dcp_schedule_vblank(dcp, "swap-no-connector");
 	}
+}
+
+static void dcp_m1n1_pre_swap_param2_done(struct apple_dcp *dcp, void *data,
+					  void *cookie)
+{
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "pre-swap set_parameter_dcp(14) second ret=%u\n",
+		 ret);
+	start_swap_after_preinit(dcp, cookie);
+}
+
+static void dcp_m1n1_pre_swap_display2_done(struct apple_dcp *dcp, void *data,
+					    void *cookie)
+{
+	struct dcp_set_parameter_dcp param = {
+		.param = IOMFBPARAM_ADAPTIVE_SYNC,
+		.value = { 0 },
+		.count = 1,
+	};
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "pre-swap set_display_device second ret=%u\n", ret);
+	dev_info(dcp->dev, "pre-swap set_parameter_dcp param=14 value=0 count=1 second\n");
+	dcp_set_parameter_dcp(dcp, false, &param,
+			      dcp_m1n1_pre_swap_param2_done, cookie);
+}
+
+static void dcp_m1n1_pre_swap_brightness_done(struct apple_dcp *dcp,
+					      void *data, void *cookie)
+{
+	u32 ret = data ? *(u32 *)data : 0;
+	u32 handle = dcp->main_display ? 0 : 2;
+
+	dev_info(dcp->dev, "pre-swap setBrightnessCorrection ret=%u\n", ret);
+	dev_info(dcp->dev, "pre-swap set_display_device handle=%u second\n",
+		 handle);
+	dcp_set_display_device(dcp, false, &handle,
+			       dcp_m1n1_pre_swap_display2_done, cookie);
+}
+
+static void dcp_m1n1_pre_swap_contrast_done(struct apple_dcp *dcp, void *data,
+					    void *cookie)
+{
+	struct dcp_set_contrast_resp *resp = data;
+	u32 value = 65536;
+
+	if (resp)
+		dev_info(dcp->dev,
+			 "pre-swap set_contrast ret=%u value=0x%x\n",
+			 resp->ret, resp->value);
+	else
+		dev_info(dcp->dev, "pre-swap set_contrast returned no data\n");
+
+	dev_info(dcp->dev, "pre-swap setBrightnessCorrection value=65536\n");
+	dcp_set_brightness_correction(dcp, false, &value,
+				      dcp_m1n1_pre_swap_brightness_done,
+				      cookie);
+}
+
+static void dcp_m1n1_pre_swap_gamma_done(struct apple_dcp *dcp, void *data,
+					 void *cookie)
+{
+	struct dcp_get_gamma_table_resp *resp = data;
+	struct dcp_set_contrast_req req = { 0 };
+
+	if (resp)
+		dev_info(dcp->dev,
+			 "pre-swap get_gamma_table ret=%u first=%*ph\n",
+			 resp->ret, 16, resp->table);
+	else
+		dev_info(dcp->dev, "pre-swap get_gamma_table returned no data\n");
+
+	dev_info(dcp->dev, "pre-swap set_contrast value=0\n");
+	dcp_set_contrast(dcp, false, &req, dcp_m1n1_pre_swap_contrast_done,
+			 cookie);
+}
+
+static void dcp_m1n1_pre_swap_param1_done(struct apple_dcp *dcp, void *data,
+					  void *cookie)
+{
+	struct dcp_get_gamma_table_req *req;
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "pre-swap set_parameter_dcp(14) first ret=%u\n",
+		 ret);
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req) {
+		dev_warn(dcp->dev,
+			 "pre-swap get_gamma_table allocation failed; continuing swap\n");
+		start_swap_after_preinit(dcp, cookie);
+		return;
+	}
+
+	dev_info(dcp->dev, "pre-swap get_gamma_table\n");
+	dcp_get_gamma_table(dcp, false, req, dcp_m1n1_pre_swap_gamma_done,
+			    cookie);
+	kfree(req);
+}
+
+static void dcp_m1n1_pre_swap_display1_done(struct apple_dcp *dcp, void *data,
+					    void *cookie)
+{
+	struct dcp_set_parameter_dcp param = {
+		.param = IOMFBPARAM_ADAPTIVE_SYNC,
+		.value = { 0 },
+		.count = 1,
+	};
+	u32 ret = data ? *(u32 *)data : 0;
+
+	dev_info(dcp->dev, "pre-swap set_display_device first ret=%u\n", ret);
+	dev_info(dcp->dev, "pre-swap set_parameter_dcp param=14 value=0 count=1 first\n");
+	dcp_set_parameter_dcp(dcp, false, &param,
+			      dcp_m1n1_pre_swap_param1_done, cookie);
+}
+
+static void dcp_m1n1_pre_swap_start(struct apple_dcp *dcp,
+				    struct swap_matrix_cookie *swap_cookie)
+{
+	u32 handle = dcp->main_display ? 0 : 2;
+
+	dev_info(dcp->dev,
+		 "pre-swap m1n1-style init: set_display_device handle=%u first\n",
+		 handle);
+	dcp_set_display_device(dcp, false, &handle,
+			       dcp_m1n1_pre_swap_display1_done, swap_cookie);
+}
+
+/* Helpers to modeset and swap, used to flush */
+static void do_swap(struct apple_dcp *dcp, void *data, void *cookie)
+{
+	struct swap_matrix_cookie *swap_cookie = cookie;
+
+	if (iomfb_m1n1_pre_swap_init &&
+	    dcp->connector && dcp->connector->connected) {
+		dcp_m1n1_pre_swap_start(dcp, swap_cookie);
+		return;
+	}
+
+	start_swap_after_preinit(dcp, swap_cookie);
 }
 
 static void complete_set_digital_out_mode(struct apple_dcp *dcp, void *data,

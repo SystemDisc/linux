@@ -153,6 +153,8 @@ enum dcpep_method {
 	dcpep_swap_submit,
 	dcpep_set_display_device,
 	dcpep_set_digital_out_mode,
+	dcpep_get_gamma_table,
+	dcpep_set_contrast,
 	dcpep_create_default_fb,
 	dcpep_set_display_refresh_properties,
 	dcpep_flush_supports_power,
@@ -345,6 +347,30 @@ struct dcp_set_parameter_dcp {
 	u32 param;
 	u32 value[8];
 	u32 count;
+} __packed;
+
+#define DCP_GAMMA_TABLE_SIZE 0xc0c
+
+struct dcp_get_gamma_table_req {
+	u8 table[DCP_GAMMA_TABLE_SIZE];
+	u8 table_null;
+	u8 padding[3];
+} __packed;
+
+struct dcp_get_gamma_table_resp {
+	u8 table[DCP_GAMMA_TABLE_SIZE];
+	u32 ret;
+} __packed;
+
+struct dcp_set_contrast_req {
+	u32 value;
+	u8 value_null;
+	u8 padding[3];
+} __packed;
+
+struct dcp_set_contrast_resp {
+	u32 value;
+	u32 ret;
 } __packed;
 
 struct dcp_swap_complete_intent_gated {

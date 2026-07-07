@@ -266,6 +266,11 @@ module_param(iomfb_m1n1_post_swap_init, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_post_swap_init,
 		 "Diagnostic: issue m1n1-style brightness/set_parameter calls after swap_start");
 
+bool iomfb_m1n1_pre_swap_init;
+module_param(iomfb_m1n1_pre_swap_init, bool, 0644);
+MODULE_PARM_DESC(iomfb_m1n1_pre_swap_init,
+		 "Diagnostic: issue m1n1-style gamma/contrast/brightness calls before swap_start");
+
 bool iomfb_force_swap_brightness;
 module_param(iomfb_force_swap_brightness, bool, 0644);
 MODULE_PARM_DESC(iomfb_force_swap_brightness,
