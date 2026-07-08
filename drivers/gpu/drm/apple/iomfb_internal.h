@@ -37,6 +37,7 @@ extern uint iomfb_vid_clock_factor_override;
 extern bool iomfb_vid_clock_factor_success;
 extern bool iomfb_skip_invalid_modeset;
 extern bool iomfb_skip_modeset_mark_valid;
+extern bool iomfb_modeset_timeout_mark_valid;
 extern bool iomfb_skip_flush_invalid_mode;
 extern bool iomfb_skip_set_matrix;
 extern bool iomfb_swap_start_client_flag2;

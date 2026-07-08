@@ -2768,6 +2768,12 @@ int DCP_FW_NAME(iomfb_modeset)(struct apple_dcp *dcp,
 
 	if (ret == 0) {
 		dev_info(dcp->dev, "set_digital_out_mode timed out\n");
+		if (iomfb_modeset_timeout_mark_valid) {
+			dev_warn(dcp->dev,
+				 "diagnostic: marking mode valid after set_digital_out_mode timeout\n");
+			dcp->valid_mode = true;
+			return 0;
+		}
 		return -EIO;
 	} else if (ret < 0) {
 		dev_info(dcp->dev,
