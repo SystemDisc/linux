@@ -381,6 +381,11 @@ module_param(iomfb_swap_submit_unk_u32out_present, bool, 0644);
 MODULE_PARM_DESC(iomfb_swap_submit_unk_u32out_present,
 		 "Diagnostic: pass a non-null V13.x swap_submit unkU32out argument");
 
+unsigned long long iomfb_surface_iova_or;
+module_param(iomfb_surface_iova_or, ullong, 0644);
+MODULE_PARM_DESC(iomfb_surface_iova_or,
+		 "Diagnostic: OR this mask into visible IOMFB surface IOVAs");
+
 uint iomfb_default_stride_override;
 module_param(iomfb_default_stride_override, uint, 0644);
 MODULE_PARM_DESC(iomfb_default_stride_override,

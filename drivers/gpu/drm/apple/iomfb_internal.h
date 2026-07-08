@@ -70,6 +70,7 @@ extern uint iomfb_swap_state_mirror_offset;
 extern bool iomfb_swap_submit_unk_u32ptr_present;
 extern uint iomfb_swap_submit_unk_u32ptr_value;
 extern bool iomfb_swap_submit_unk_u32out_present;
+extern unsigned long long iomfb_surface_iova_or;
 extern uint iomfb_default_stride_override;
 extern ulong iomfb_clock_frequency_override;
 

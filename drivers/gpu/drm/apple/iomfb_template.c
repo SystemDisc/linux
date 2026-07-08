@@ -2916,6 +2916,15 @@ void DCP_FW_NAME(iomfb_flush)(struct apple_dcp *dcp, struct drm_crtc *crtc, stru
 #endif
 
 		req->surf_iova[l] = apple_state->iova;
+		if (iomfb_surface_iova_or) {
+			u64 orig = req->surf_iova[l];
+
+			req->surf_iova[l] |= iomfb_surface_iova_or;
+			dev_info(dcp->dev,
+				 "forcing surface IOVA OR layer=%d orig=0x%llx mask=0x%llx final=0x%llx\n",
+				 l, orig, iomfb_surface_iova_or,
+				 req->surf_iova[l]);
+		}
 		req->surf[l].base = apple_state->surf;
 		if (iomfb_force_surface_id) {
 			req->swap.surf_ids[l] = iomfb_force_surface_id;
