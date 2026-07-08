@@ -266,6 +266,11 @@ module_param(iomfb_m1n1_post_swap_init, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_post_swap_init,
 		 "Diagnostic: issue m1n1-style brightness/set_parameter calls after swap_start");
 
+bool iomfb_m1n1_post_swap_skip_brightness;
+module_param(iomfb_m1n1_post_swap_skip_brightness, bool, 0644);
+MODULE_PARM_DESC(iomfb_m1n1_post_swap_skip_brightness,
+		 "Diagnostic: skip post-swap-start A427 brightness correction");
+
 bool iomfb_m1n1_pre_swap_init;
 module_param(iomfb_m1n1_pre_swap_init, bool, 0644);
 MODULE_PARM_DESC(iomfb_m1n1_pre_swap_init,
