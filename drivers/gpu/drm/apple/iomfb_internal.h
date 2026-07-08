@@ -43,6 +43,7 @@ extern uint iomfb_swap_start_client_unk;
 extern unsigned long long iomfb_swap_start_client_handle;
 extern uint iomfb_poll_after_swap_start_ms;
 extern uint iomfb_poll_after_swap_submit_ms;
+extern uint iomfb_poll_after_swap_submit_ack_ms;
 extern bool iomfb_fake_pageflip_on_swap_submit_ack;
 extern uint iomfb_poll_after_set_matrix_ms;
 extern bool iomfb_set_matrix_after_swap_start;

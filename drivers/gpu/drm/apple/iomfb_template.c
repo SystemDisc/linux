@@ -1986,6 +1986,9 @@ TRAMPOLINE_OUT(trampoline_create_backlight_service, dcpep_cb_create_backlight_se
  * complete event so we need to fake a vblank event early to avoid a hang.
  */
 
+static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
+				  u32 timeout_ms);
+
 static void dcp_swapped(struct apple_dcp *dcp, void *data, void *cookie)
 {
 	struct DCP_FW_NAME(dcp_swap_submit_resp) *resp = data;
@@ -1999,6 +2002,9 @@ static void dcp_swapped(struct apple_dcp *dcp, void *data, void *cookie)
 		return;
 	}
 	dcp->swap_start = ktime_get();
+	if (iomfb_poll_after_swap_submit_ack_ms)
+		poll_after_iomfb_call(dcp, "swap_submit_ack",
+				      iomfb_poll_after_swap_submit_ack_ms);
 	if (iomfb_fake_pageflip_on_swap_submit_ack) {
 		dev_warn(dcp->dev,
 			 "diagnostic: faking DRM pageflip on successful swap_submit ACK\n");
@@ -2022,9 +2028,6 @@ struct swap_matrix_cookie {
 	bool set_matrix_before_submit;
 	struct iomfb_set_matrix_req mat;
 };
-
-static void poll_after_iomfb_call(struct apple_dcp *dcp, const char *name,
-				  u32 timeout_ms);
 
 static void log_swap_submit_req(struct apple_dcp *dcp,
 				struct DCP_FW_NAME(dcp_swap_submit_req) *req)
