@@ -3204,7 +3204,9 @@ static u32 dcp_boot_fb_format(struct apple_dcp *dcp)
 static void dcp_build_boot_dfb_surface(struct apple_dcp *dcp,
 				       struct DCP_FW_NAME(dcp_surface) *surf)
 {
-	u32 height = dcp->boot_fb.visible_height + dcp->notch_height;
+	u32 extra_height = iomfb_update_dfb_include_hidden_height ?
+		dcp->boot_fb.hidden_height : dcp->notch_height;
+	u32 height = dcp->boot_fb.visible_height + extra_height;
 
 	memset(surf, 0, sizeof(*surf));
 
@@ -3223,10 +3225,12 @@ static void dcp_build_boot_dfb_surface(struct apple_dcp *dcp,
 	surf->base.has_planes = 1;
 
 	dev_info(dcp->dev,
-		 "update_dfb boot surface id=%u format=0x%x %ux%u stride=%u buf_size=0x%x colorspace=%u valid_bootfb=%u\n",
+		 "update_dfb boot surface id=%u format=0x%x %ux%u stride=%u buf_size=0x%x colorspace=%u valid_bootfb=%u visible_height=%u hidden_height=%u notch_height=%u include_hidden=%u\n",
 		 surf->base.surface_id, surf->base.format, surf->base.width,
 		 surf->base.height, surf->base.stride, surf->base.buf_size,
-		 surf->base.colorspace, dcp->boot_fb.valid);
+		 surf->base.colorspace, dcp->boot_fb.valid,
+		 dcp->boot_fb.visible_height, dcp->boot_fb.hidden_height,
+		 dcp->notch_height, iomfb_update_dfb_include_hidden_height);
 }
 
 static void init_2(struct apple_dcp *dcp, void *out, void *cookie);

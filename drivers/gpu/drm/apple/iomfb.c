@@ -156,6 +156,11 @@ module_param(iomfb_update_dfb_before_first_client, bool, 0644);
 MODULE_PARM_DESC(iomfb_update_dfb_before_first_client,
 		 "Send update_dfb with the boot framebuffer surface before first_client_open");
 
+bool iomfb_update_dfb_include_hidden_height;
+module_param(iomfb_update_dfb_include_hidden_height, bool, 0644);
+MODULE_PARM_DESC(iomfb_update_dfb_include_hidden_height,
+		 "Include notch-hidden simplefb rows in the boot framebuffer update_dfb surface");
+
 uint iomfb_update_dfb_surface_id = 3;
 module_param(iomfb_update_dfb_surface_id, uint, 0644);
 MODULE_PARM_DESC(iomfb_update_dfb_surface_id,

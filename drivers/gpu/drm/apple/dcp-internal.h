@@ -123,6 +123,7 @@ struct dcp_boot_framebuffer {
 	struct resource visible;
 	u32 width;
 	u32 visible_height;
+	u32 hidden_height;
 	u32 stride;
 	char format[32];
 };

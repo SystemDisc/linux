@@ -599,6 +599,9 @@ void dcp_set_boot_framebuffer(struct platform_device *pdev,
 	dcp->boot_fb.width = width;
 	dcp->boot_fb.visible_height = height;
 	dcp->boot_fb.stride = stride;
+	if (visible->start >= reserved->start)
+		dcp->boot_fb.hidden_height =
+			div_u64(visible->start - reserved->start, stride);
 	strscpy(dcp->boot_fb.format, format ?: "unknown",
 		sizeof(dcp->boot_fb.format));
 }

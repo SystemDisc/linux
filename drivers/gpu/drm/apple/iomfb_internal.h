@@ -25,6 +25,7 @@ extern bool iomfb_power_before_display_device;
 extern bool iomfb_update_notify_clients;
 extern bool iomfb_create_default_fb_before_first_client;
 extern bool iomfb_update_dfb_before_first_client;
+extern bool iomfb_update_dfb_include_hidden_height;
 extern uint iomfb_update_dfb_surface_id;
 extern uint iomfb_update_dfb_colorspace;
 extern bool iomfb_call_is_keep_on_screen;
